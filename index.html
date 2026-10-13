@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wasatch BC Atlas</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <button id="panel-toggle" class="panel-toggle" aria-controls="panel" aria-expanded="true" title="Toggle panel">☰</button>
+
+  <aside id="panel" class="panel">
+    <header class="panel-head">
+      <h1>Wasatch BC Atlas</h1>
+      <p class="sub">Terrain from USGS 3DEP, slope and aspect worked out in your browser. A planning aid, not a forecast.</p>
+    </header>
+
+    <details open>
+      <summary>Map</summary>
+      <div class="row">
+        <label for="basemap">Basemap</label>
+        <select id="basemap">
+          <option value="topo">USGS Topo</option>
+          <option value="imagerytopo">USGS Imagery + Topo</option>
+          <option value="imagery">USGS Imagery</option>
+        </select>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="terrain3d" checked> 3D terrain</label>
+        <input type="range" id="exag" min="1" max="2.5" step="0.1" value="1.4" aria-label="Terrain exaggeration">
+        <output id="exag-out">1.4×</output>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="hillshade" checked> Hillshade</label>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="avypaths" checked> Avalanche paths <span class="muted">(1989 survey)</span></label>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="zones" checked> UAC forecast zones</label>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Terrain analysis</summary>
+      <div class="seg" role="radiogroup" aria-label="Terrain analysis mode">
+        <label><input type="radio" name="mode" value="none"> Off</label>
+        <label><input type="radio" name="mode" value="slope" checked> Slope</label>
+        <label><input type="radio" name="mode" value="aspect"> Aspect</label>
+        <label><input type="radio" name="mode" value="match"> Rose match</label>
+      </div>
+      <div class="row">
+        <label for="opacity">Opacity</label>
+        <input type="range" id="opacity" min="0.2" max="1" step="0.05" value="0.6">
+      </div>
+      <div id="legend" class="legend"></div>
+      <p class="hint" id="zoom-hint">Zoom in to level 11 or closer to see shading.</p>
+    </details>
+
+    <details open>
+      <summary>Avalanche rose</summary>
+      <p class="hint">Copy today's danger rose from the <a href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">UAC Salt Lake forecast</a>: tap the aspects and elevation bands that are dangerous. <b>Rose match</b> then shades only slopes that are steep enough <i>and</i> in a band you picked. The rose isn't filled in automatically: UAC's data feed needs an API key.</p>
+      <div class="rose-wrap">
+        <svg id="rose" viewBox="-110 -110 220 220" role="group" aria-label="Avalanche rose"></svg>
+        <div class="rose-side">
+          <div class="row">
+            <label for="minslope">Min slope</label>
+            <input type="number" id="minslope" min="20" max="50" step="1" value="30"><span>°</span>
+          </div>
+          <div class="btns">
+            <button data-rose="all">All</button>
+            <button data-rose="none">Clear</button>
+            <button data-rose="north">NW–E</button>
+            <button data-rose="upper">Upper</button>
+          </div>
+          <p class="muted small">Rings: centre &gt;9,500′ · middle 8,000–9,500′ · outer &lt;8,000′ (UAC Salt Lake bands)</p>
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Route & pins</summary>
+      <div class="btns">
+        <button id="draw-btn" class="primary">Draw route</button>
+        <button id="undo-btn">Undo</button>
+        <button id="clear-btn">Clear</button>
+        <button id="pin-btn">Drop pin</button>
+      </div>
+      <div class="btns">
+        <label class="btn-like">Import GPX<input type="file" id="gpx-in" accept=".gpx,application/gpx+xml" hidden></label>
+        <button id="gpx-out">Export GPX</button>
+      </div>
+      <p class="hint" id="draw-hint" hidden>Click the map to add points. Press Enter or Esc to finish, Backspace to undo.</p>
+      <div id="route-stats" class="stats"></div>
+      <div id="profile" class="profile"></div>
+      <ul id="pin-list" class="pin-list"></ul>
+    </details>
+
+    <details>
+      <summary>UAC rated routes <span class="muted" id="uac-count"></span></summary>
+      <p class="hint">Ratings and stats are copied as published on each UAC route page. No route lines yet: UAC doesn't publish coordinates.</p>
+      <div class="seg small" id="rating-filter">
+        <label><input type="checkbox" value="Green" checked> Green</label>
+        <label><input type="checkbox" value="Yellow" checked> Yellow</label>
+        <label><input type="checkbox" value="Orange" checked> Orange</label>
+        <label><input type="checkbox" value="Red" checked> Red</label>
+      </div>
+      <ul id="uac-list" class="uac-list"></ul>
+    </details>
+
+    <details>
+      <summary>Sources</summary>
+      <ul class="sources">
+        <li><b>Elevation:</b> <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a> (Terrarium encoding). In the US this is USGS 3DEP. Slope, aspect and route stats are all calculated from these tiles in your browser.</li>
+        <li><b>Basemaps:</b> <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank" rel="noopener">USGS The National Map</a></li>
+        <li><b>Avalanche paths:</b> <a href="https://gis.utah.gov/products/sgid/geoscience/avalanche-paths/" target="_blank" rel="noopener">Utah SGID Avalanche Paths</a>, drawn for the 1989 Salt Lake County Wasatch Canyons Master Plan. Saved from the State of Utah UPLAN copy on 2026-10-12. Many paths have no name.</li>
+        <li><b>Forecast zones:</b> <a href="https://gis.utah.gov/products/sgid/recreation/avalanche-center-forecast-zones/" target="_blank" rel="noopener">UGRC – UAC Forecast Zones</a></li>
+        <li><b>Route ratings:</b> <a href="https://utahavalanchecenter.org/education/selected-routes" target="_blank" rel="noopener">Utah Avalanche Center route ratings</a></li>
+        <li><b>Elevation bands:</b> UAC Salt Lake advisories (&lt;8,000′, 8,000–9,500′, &gt;9,500′)</li>
+      </ul>
+    </details>
+  </aside>
+
+  <div id="readout" class="readout" aria-live="off"></div>
+
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="dem.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

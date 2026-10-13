@@ -1,0 +1,32 @@
+# Wasatch BC Atlas
+
+A 3D backcountry planning map for the Central Wasatch. Static site with no build step.
+
+## Run locally
+
+```bash
+python3 -m http.server 8080 -d ~/wasatch-bc-atlas
+```
+
+Then open http://localhost:8080.
+
+## Files
+
+- `index.html`, `app.css`: page and styles
+- `app.js`: map, layers, avalanche rose, route drawing and stats, pins, GPX
+- `dem.js`: terrain maths shared by the page and workers (Terrarium decode, Horn slope/aspect)
+- `tile-worker.js`: renders slope / aspect / rose-match tiles off the main thread
+- `data/`: data snapshots, each with its source recorded inside the file
+
+## Data rule
+
+No invented data. Every number comes from one of these sources:
+
+| Data | Source |
+|---|---|
+| Elevation, slope, aspect, route stats | AWS Terrain Tiles (Terrarium; USGS 3DEP in the US), calculated in the browser |
+| Basemaps | USGS The National Map |
+| Avalanche paths | Utah SGID Avalanche Paths (1989 Wasatch Canyons Master Plan), State of Utah UPLAN copy, snapshot 2026-10-12 |
+| Forecast zones | UGRC SGID, UAC Forecast Zones |
+| Route ratings and stats | Utah Avalanche Center route pages (`data/uac_routes.json`) |
+| Elevation bands | UAC Salt Lake advisories: <8,000′, 8,000–9,500′, >9,500′ |
