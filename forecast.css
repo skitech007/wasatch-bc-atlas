@@ -15,6 +15,8 @@
 }
 .fc-head h1 { font-size: 18px; margin: 0; }
 .fc-head .badge { width: 40px; height: 40px; flex: 0 0 40px; }
+/* White sticker backing, like the original, so the navy ridge shows on the dark header */
+.fc-head .mountain-logo { height: 46px; width: auto; vertical-align: middle; margin: -14px 0 -12px 14px; padding: 1px 6px; background: #fff; border-radius: 10px; }
 .fc-head > div { flex: 1; min-width: 0; }
 .fc-head .back { white-space: nowrap; text-decoration: none; font-size: 13px; }
 .warn { color: #ffb067; }
@@ -135,4 +137,9 @@ code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: 
   .odds { gap: 2px; }
   .odd { font-size: 9px; letter-spacing: -0.3px; min-width: 0; }
   .fc-head h1 .muted { display: none; }
+  .fc-head { gap: 8px; padding: 8px 12px; }
+  .fc-head .badge { width: 32px; height: 32px; flex-basis: 32px; }
+  .fc-head h1 { display: flex; align-items: center; white-space: nowrap; }
+  .fc-head .mountain-logo { height: 28px; margin: -3px 0 -3px 8px; padding: 1px 4px; border-radius: 7px; }
+  .fc-head .back { font-size: 12px; }
 }
