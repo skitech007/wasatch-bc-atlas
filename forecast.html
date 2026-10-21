@@ -67,6 +67,7 @@
           GFS jumps at day 5 and GEM at day 3, where each model switches to a coarser grid. Models with smaller day-to-day error after correction get more weight in the blend (hover a factor for details). Rerun <code>tools/calibrate_alta.py</code> to refresh.</li>
         <li><b>Rain or snow.</b> From the temperature at 9,895 ft: all snow at 32°F or colder, all rain at 37.4°F or warmer, a straight line between (Jennings et al. 2018).</li>
         <li><b>Snow ratio.</b> Kuchera method: 12:1 at about 29°F, heavier above, lighter below, from the warmer of the 9,895 ft and 700 mb temperatures.</li>
+        <li><b>Days 8–15.</b> The corrections are only measured out to 7 days, and a single model run that far out is mostly noise, so from day 8 the snow and water are the average of all 82 ensemble runs rather than the four-model blend. The model table still shows each model's own run.</li>
         <li><b>Odds and ranges.</b> The same steps run on all 82 runs of the ECMWF (51) and GFS (31) ensembles, each corrected with its parent model's factor (the GFS ensemble keeps one grid throughout, so its factor is held at the day-4 value). "Likely range" takes how spread out the middle half of those runs is and centres it on the blend; chance figures are the share of runs that hit the mark.</li>
         <li><b>Everything else</b> (temperature, feels like, humidity, wind, cloud, freezing level) is the weighted blend of the four models. Snow level comes from the NWS forecast grid and runs out after about 7 days.</li>
       </ol>

@@ -67,11 +67,12 @@ function expandNws(series, { spread = false, scale = 1 } = {}) {
 }
 
 // ---------- fetching ----------
-const CACHE_KEY = 'alta-forecast-v2';
+const CACHE_KEY = 'alta-forecast-v3';
 const CACHE_MIN = 20;
 
 async function getJSON(url) {
-  const r = await fetch(url, { headers: { Accept: 'application/geo+json, application/json' } });
+  // Time out so one slow source (USDA's SNOTEL server sometimes hangs) can't hold up the page
+  const r = await fetch(url, { headers: { Accept: 'application/geo+json, application/json' }, signal: AbortSignal.timeout(12000) });
   if (!r.ok) throw new Error(`${r.status} from ${new URL(url).host}`);
   return r.json();
 }
@@ -111,7 +112,10 @@ async function fetchAll(force) {
     const p = out.data.nws.properties;
     out.data.nws = { snowLevel: p.snowLevel, snowfallAmount: p.snowfallAmount, probabilityOfPrecipitation: p.probabilityOfPrecipitation, updateTime: p.updateTime };
   }
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(out)); } catch { /* quota or private mode */ }
+  // Only cache a complete fetch, so one source's hiccup isn't kept for the whole cache window
+  if (!Object.keys(out.errors).length) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(out)); } catch { /* quota or private mode */ }
+  }
   return out;
 }
 
@@ -158,14 +162,27 @@ function build({ data }) {
       per[m.id] = x;
     }
     const pick = f => Object.fromEntries(MODELS.map(m => [m.id, f(per[m.id])]));
-    const snow = SNOW.blend(pick(x => x.res?.snow), weights);
-    const water = SNOW.blend(pick(x => x.res?.water), weights);
+    let snow = SNOW.blend(pick(x => x.res?.snow), weights);
+    let water = SNOW.blend(pick(x => x.res?.water), weights);
     const wet = Object.fromEntries(MODELS.map(m => [m.id, per[m.id].res && per[m.id].res.water > 0.002 ? per[m.id].res.slr : null]));
     const frac = SNOW.blend(pick(x => x.res?.frac), weights);
 
+    const ei = ensIndex[t];
+    // Past day 7 the corrections aren't calibrated and single runs are mostly noise,
+    // so snow and water come from the average of all ensemble runs instead
+    // (hours where no run reports anything count as dry, never as a single-run fallback)
+    if (i - nowIdx >= 7 * 24 && members.length) {
+      let s = 0, w = 0;
+      for (const mb of members) {
+        if (ei == null || mb.p[ei] == null || mb.t[ei] == null) continue;
+        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] }, factorAt(calib, mb.ens.parent, Math.min(7, mb.ens.maxLead)));
+        s += r.snow; w += r.water;
+      }
+      snow = s / members.length; water = w / members.length;
+    }
+
     // Ensemble chance of 0.01"+ in the 3 hours centred on this one
     let chance = null;
-    const ei = ensIndex[t];
     if (ei != null && members.length) {
       let wetN = 0, n = 0;
       for (const mb of members) {
