@@ -127,3 +127,19 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
   .panel-head h1 { padding-left: 0; }
   .readout { bottom: auto; top: 12px; right: 12px; }
 }
+
+.alta-tots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 6px; }
+.alta-tots div { background: var(--btn); border-radius: 6px; padding: 6px 8px; }
+.alta-tots b { display: block; font-size: 18px; }
+.alta-tots span { color: var(--muted); font-size: 11px; }
+.alta-bars { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; height: 56px; }
+.alta-bars div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.alta-bars i { display: block; width: 70%; background: #3987e5; border-radius: 2px 2px 0 0; }
+.alta-bars i.powder { background: var(--orange); }
+.alta-bars span { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.alta-link { display: inline-block; font-size: 12px; margin: 6px 0 2px; }
+.alta-marker {
+  background: #11161c; color: #e6ebf0; border: 1px solid #5fb3ff; border-radius: 12px;
+  padding: 3px 8px; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.alta-marker:hover { background: #1c2733; }

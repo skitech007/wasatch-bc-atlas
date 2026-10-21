@@ -1,0 +1,137 @@
+/* Alta forecast page. Builds on app.css tokens. Chart series use the dark-mode categorical steps. */
+.fc {
+  --s1: #3987e5;  /* NBM, snow */
+  --s2: #d95926;  /* ECMWF */
+  --s3: #199e70;  /* GFS */
+  --s4: #c98500;  /* GEM */
+  --s7: #9085e9;  /* NWS */
+  --powder: #f08a24;
+  --card: #18202a;
+  height: auto; min-height: 100%;
+}
+.fc-head {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px; background: rgba(17, 22, 28, 0.94); border-bottom: 1px solid var(--line); backdrop-filter: blur(6px);
+}
+.fc-head h1 { font-size: 18px; margin: 0; }
+.fc-head > div { flex: 1; min-width: 0; }
+.fc-head .back { white-space: nowrap; text-decoration: none; font-size: 13px; }
+.warn { color: #ffb067; }
+
+.fc main { max-width: 1180px; margin: 0 auto; padding: 12px 16px 40px; display: grid; gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 10px; }
+.card h2 .muted { font-size: 12px; }
+.scroll-x { overflow-x: auto; }
+
+#alerts .alert { max-width: 1180px; margin: 10px auto 0; padding: 8px 12px; border-radius: 8px; background: #3a1d12; border: 1px solid #d83a2e; font-size: 13px; }
+
+/* summary bars */
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.sgroup header { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.sgroup header b { color: var(--text); font-size: 22px; }
+.bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; height: 150px; }
+.bars.obs { grid-template-columns: repeat(15, 1fr); height: 120px; margin-top: 10px; }
+.bar { display: flex; flex-direction: column; align-items: center; min-width: 0; cursor: default; outline-offset: 2px; }
+.bar .bv { font-size: 12px; font-weight: 600; height: 16px; font-variant-numeric: tabular-nums; }
+.bar .area { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.bar .area i { display: block; width: 70%; max-width: 34px; background: var(--s1); border-radius: 4px 4px 0 0; }
+.bar .area i.powder { background: var(--powder); }
+.bar .area em { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--text); opacity: 0.75; border-radius: 1px; }
+.bar .bd { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.2; margin-top: 3px; }
+.bars.obs .bar .area i { width: 60%; }
+
+.odds-wrap { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.odds-label { font-size: 12px; color: var(--muted); flex: 0 0 auto; width: 80px; }
+.odds { flex: 1; display: grid; grid-template-columns: repeat(15, 1fr); gap: 4px; }
+.odd { text-align: center; font-size: 11px; padding: 4px 0; border-radius: 4px; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+
+/* tables */
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+th, td { padding: 6px 8px; white-space: nowrap; }
+thead th { font-size: 11px; color: var(--muted); font-weight: 600; text-align: center; vertical-align: bottom; }
+th small, td small { display: block; font-size: 10px; color: var(--muted); font-weight: 400; }
+.num { text-align: center; }
+
+.ptable { width: 100%; }
+.ptable tbody tr { border-top: 1px solid var(--line); }
+.ptable tr.night { background: rgba(255, 255, 255, 0.025); }
+.ptable .pday { text-align: left; font-size: 14px; border-right: 1px solid var(--line); }
+.ptable .pday small { display: inline; margin-left: 4px; font-size: 11px; }
+.ptable .pn { color: var(--muted); font-size: 11px; }
+.ptable .ic { text-align: center; font-size: 16px; }
+.snowcell { position: relative; min-width: 120px; }
+.snowcell i { position: absolute; left: 6px; top: 7px; bottom: 7px; max-width: calc(100% - 12px); background: color-mix(in oklab, var(--s1) 40%, transparent); border-left: 3px solid var(--s1); border-radius: 2px; }
+.snowcell.powder i { background: color-mix(in oklab, var(--powder) 40%, transparent); border-left-color: var(--powder); }
+.snowcell.mixed i { border-left-color: #9085e9; background: color-mix(in oklab, #9085e9 30%, transparent); }
+.snowcell b { position: relative; font-size: 14px; margin-left: 6px; }
+.snowcell small { position: relative; display: inline; margin-left: 6px; }
+
+.jump-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+.jump { display: flex; gap: 4px; overflow-x: auto; }
+.jump button { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
+.hourly { max-height: none; }
+.htable th:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); text-align: left; font-size: 12px; min-width: 140px; border-right: 1px solid var(--line); }
+.htable tbody th small { display: inline; margin-left: 3px; }
+.htable thead th { min-width: 46px; }
+.htable thead th small { color: var(--muted); }
+.htable td { text-align: center; font-size: 12px; padding: 5px 4px; }
+.htable tbody tr { border-top: 1px solid var(--line); }
+.htable .newday { border-left: 2px solid var(--line); }
+.htable thead th.now { color: var(--accent-ink); background: var(--accent); border-radius: 4px 4px 0 0; }
+.htable thead th.now small { color: var(--accent-ink); }
+
+.mtable th:first-child { text-align: left; position: sticky; left: 0; background: var(--card); min-width: 200px; }
+.mtable td { text-align: center; font-size: 12px; min-width: 34px; }
+.mtable td.pw { color: var(--powder); font-weight: 700; }
+.mtable tbody tr { border-top: 1px solid var(--line); }
+.mtable th small { display: inline; margin-left: 4px; }
+.mtable .tot { font-weight: 700; border-left: 1px solid var(--line); }
+.mtable .tot small { display: inline; }
+.mtable .blendrow { background: rgba(95, 179, 255, 0.08); font-weight: 700; }
+.mtable .ensrow td { color: var(--muted); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.cumulative svg { width: 100%; height: auto; display: block; }
+.cumulative .grid { stroke: var(--line); stroke-width: 1; }
+.cumulative .ax { fill: var(--muted); font-size: 10px; }
+.cumulative .lbl { font-size: 11px; font-weight: 600; }
+.cumulative .band { fill: rgba(143, 156, 171, 0.18); }
+.cumulative .cross { stroke: var(--muted); stroke-dasharray: 3 3; }
+
+/* observed */
+.obs-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tile { background: var(--btn); border-radius: 8px; padding: 8px 10px; }
+.tile b { display: block; font-size: 20px; }
+.tile span { color: var(--muted); font-size: 11px; }
+.obs-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.obs-groups div { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.obs-groups span { color: var(--muted); font-size: 12px; display: block; }
+.obs-groups b { font-size: 18px; }
+.obs-groups small { color: var(--muted); margin-left: 6px; }
+
+.afd pre { white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--text); background: var(--bg); border-radius: 8px; padding: 10px; max-height: 420px; overflow: auto; }
+.afd-lead { margin: 0 0 6px; }
+.afd details { border: 0; }
+
+.method ol { padding-left: 18px; margin: 0; line-height: 1.55; font-size: 13px; }
+.method li { margin-bottom: 8px; }
+.ftable { margin: 8px 0; font-size: 12px; }
+.ftable td, .ftable th { text-align: center; border-top: 1px solid var(--line); }
+.ftable th:first-child { text-align: left; }
+code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+.tip {
+  position: fixed; z-index: 20; pointer-events: none; max-width: 260px;
+  background: #0b0f14; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .summary { grid-template-columns: 1fr; }
+  .obs-tiles { grid-template-columns: repeat(2, 1fr); }
+  .odds-wrap { flex-direction: column; align-items: stretch; gap: 4px; }
+  .odds-label { width: auto; }
+  .odds { gap: 2px; }
+  .odd { font-size: 9px; letter-spacing: -0.3px; min-width: 0; }
+  .fc-head h1 .muted { display: none; }
+}

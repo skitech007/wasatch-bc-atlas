@@ -187,6 +187,7 @@ map.once('style.load', async () => {
   renderPins();
   updateRoute();
   loadUacRoutes();
+  loadAltaSnow();
 });
 
 /* hover / click on avalanche paths and zones */
@@ -588,4 +589,30 @@ function renderUacList() {
     h.onclick = toggle;
     h.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
   });
+}
+
+/* ---------- Alta snow forecast (data and maths in forecast-data.js) ---------- */
+async function loadAltaSnow() {
+  const el = document.getElementById('alta-mini');
+  const marker = document.createElement('a');
+  marker.className = 'alta-marker'; marker.href = 'forecast.html'; marker.title = 'Alta forecast point, 9,895 ft';
+  marker.textContent = '❄ Alta';
+  new maplibregl.Marker({ element: marker, anchor: 'bottom' }).setLngLat([POINT.lon, POINT.lat]).addTo(map);
+  try {
+    const b = build(await fetchAll(false));
+    const max = Math.max(4, ...b.days.map(d => d.snow || 0));
+    const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
+    const next5 = tot(0, 5);
+    marker.textContent = `❄ Alta ${next5}"`;
+    marker.title = `Alta: ${next5}" in the next 5 days. Open the full forecast.`;
+    el.innerHTML = `<div class="alta-tots">${[[0, 5, '1–5 days'], [5, 10, '6–10'], [10, 15, '11–15']].map(([a, z, l]) => `<div><b>${tot(a, z)}"</b><span>${l}</span></div>`).join('')}</div>
+      <div class="alta-bars">${b.days.map(d => {
+        const v = d.snow || 0;
+        const tip = `${dow(d.date)} ${dom(d.date)}: ${v.toFixed(1)}"${d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : ''}`;
+        return `<div title="${esc(tip)}"><i class="${v >= POWDER_IN - 0.5 ? 'powder' : ''}" style="height:${Math.max(2, 100 * v / max)}%"></i><span>${dow(d.date)[0]}</span></div>`;
+      }).join('')}</div>`;
+    document.getElementById('alta-updated').textContent = `· next 15 days`;
+  } catch (e) {
+    el.innerHTML = `<p class="hint">Forecast didn't load (${esc(e.message)}).</p>`;
+  }
 }

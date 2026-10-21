@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alta Snow Forecast</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="forecast.css">
+</head>
+<body class="fc">
+  <header class="fc-head">
+    <a href="index.html" class="back" title="Back to the map">← Atlas map</a>
+    <div>
+      <h1>Alta <span class="muted">· forecast point 9,895 ft</span></h1>
+      <p class="sub" id="status">Loading forecast…</p>
+    </div>
+    <button id="refresh" title="Fetch fresh data">Refresh</button>
+  </header>
+
+  <div id="alerts"></div>
+
+  <main>
+    <section class="card">
+      <h2>Snow summary <span class="muted">· each day is 6 pm the night before to 6 pm</span></h2>
+      <div id="summary" class="summary"></div>
+      <div class="odds-wrap">
+        <span class="odds-label">Chance of 6"+</span>
+        <div id="odds" class="odds"></div>
+      </div>
+      <p class="hint">Bars are the Alta blend. The thin line on each bar is the likely range, from how much the ensemble runs disagree. Orange = 6"+ day.</p>
+    </section>
+
+    <section class="card">
+      <h2>Day &amp; night</h2>
+      <div id="periods" class="scroll-x"></div>
+    </section>
+
+    <section class="card">
+      <h2>Hourly</h2>
+      <div class="jump-row"><span class="muted">Jump to</span><div id="jump" class="jump"></div></div>
+      <div id="hourly" class="scroll-x hourly"></div>
+    </section>
+
+    <section class="card">
+      <h2>Models side by side</h2>
+      <div id="cumulative" class="cumulative"></div>
+      <p class="hint">Running total of snow at Alta by model, after each model's Alta correction. The grey band covers the middle 80% of the 82 ensemble runs' running totals.</p>
+      <div id="models" class="scroll-x"></div>
+    </section>
+
+    <section class="card">
+      <h2>What actually fell <span class="muted">· Atwater SNOTEL, Alta</span></h2>
+      <div id="observed"></div>
+    </section>
+
+    <section class="card">
+      <h2>NWS forecast discussion</h2>
+      <div id="afd" class="afd"></div>
+    </section>
+
+    <section class="card method">
+      <h2>How these numbers are made</h2>
+      <ol>
+        <li><b>Water.</b> Hourly precipitation from four weather models for Alta's forecast point (40.5884, −111.6386, 9,895 ft), via <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>.</li>
+        <li><b>Alta correction.</b> The models smooth the Wasatch into blobs and miss how much falls at Alta. For the winters of <span id="method-seasons"></span> (Nov 15 – Apr 15) we compared what each model forecast 1 to 7 days ahead with what fell at the Atwater SNOTEL, and multiply each model's water by its factor for that lead day (days 8–15 use day 7):
+          <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>1 day out</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead><tbody id="method-factors"></tbody></table></div>
+          GFS jumps at day 5 and GEM at day 3, where each model switches to a coarser grid. Models with smaller day-to-day error after correction get more weight in the blend (hover a factor for details). Rerun <code>tools/calibrate_alta.py</code> to refresh.</li>
+        <li><b>Rain or snow.</b> From the temperature at 9,895 ft: all snow at 32°F or colder, all rain at 37.4°F or warmer, a straight line between (Jennings et al. 2018).</li>
+        <li><b>Snow ratio.</b> Kuchera method: 12:1 at about 29°F, heavier above, lighter below, from the warmer of the 9,895 ft and 700 mb temperatures.</li>
+        <li><b>Odds and ranges.</b> The same steps run on all 82 runs of the ECMWF (51) and GFS (31) ensembles, each corrected with its parent model's factor (the GFS ensemble keeps one grid throughout, so its factor is held at the day-4 value). "Likely range" takes how spread out the middle half of those runs is and centres it on the blend; chance figures are the share of runs that hit the mark.</li>
+        <li><b>Everything else</b> (temperature, feels like, humidity, wind, cloud, freezing level) is the weighted blend of the four models. Snow level comes from the NWS forecast grid and runs out after about 7 days.</li>
+      </ol>
+      <p class="hint">Sources: Open-Meteo forecast, ensemble and previous-runs APIs (NOAA, ECMWF, Environment Canada models) · NWS api.weather.gov (snow level, forecast snow, alerts, forecast discussion) · NRCS SNOTEL 1308 Atwater. Nothing comes from OpenSnow or the resort.</p>
+    </section>
+  </main>
+
+  <script src="snow.js"></script>
+  <script src="forecast-data.js"></script>
+  <script src="forecast.js"></script>
+</body>
+</html>

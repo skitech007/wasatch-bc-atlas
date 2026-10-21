@@ -16,6 +16,10 @@ Then open http://localhost:8080.
 - `app.js`: map, layers, avalanche rose, route drawing and stats, pins, GPX
 - `dem.js`: terrain maths shared by the page and workers (Terrarium decode, Horn slope/aspect)
 - `tile-worker.js`: renders slope / aspect / rose-match tiles off the main thread
+- `forecast.html`, `forecast.css`, `forecast.js`: the Alta snow forecast page (summary, day/night, hourly, models, observed, NWS discussion)
+- `forecast-data.js`: fetches and blends the forecast data; shared by the forecast page and the map panel
+- `snow.js`: snow maths (rain/snow split, Kuchera snow ratio, weighted blends)
+- `tools/calibrate_alta.py`: measures each model's Alta correction by lead day; writes `data/alta_calibration.json`
 - `data/`: data snapshots, each with its source recorded inside the file
 
 ## Data rule
@@ -30,3 +34,7 @@ No invented data. Every number comes from one of these sources:
 | Forecast zones | UGRC SGID, UAC Forecast Zones |
 | Route ratings and stats | Utah Avalanche Center route pages (`data/uac_routes.json`) |
 | Elevation bands | UAC Salt Lake advisories: <8,000′, 8,000–9,500′, >9,500′ |
+| Alta forecast models | Open-Meteo forecast and ensemble APIs (NBM, ECMWF, GFS, GEM; ECMWF and GFS ensembles), fetched live |
+| Alta correction factors | Open-Meteo Previous Runs API vs NRCS SNOTEL 1308 Atwater, winters 2024–25 and 2025–26 (`data/alta_calibration.json`) |
+| Snow level, NWS snow, alerts, forecast discussion | NWS api.weather.gov, grid SLC 108,167 |
+| Observed snow at Alta | NRCS SNOTEL 1308 Atwater, fetched live |

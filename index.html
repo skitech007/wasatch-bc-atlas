@@ -19,6 +19,12 @@
     </header>
 
     <details open>
+      <summary>Alta snow <span class="muted" id="alta-updated"></span></summary>
+      <div id="alta-mini" class="alta-mini"><p class="hint">Loading forecast…</p></div>
+      <a href="forecast.html" class="alta-link">Full Alta forecast: day/night, hourly, models →</a>
+    </details>
+
+    <details open>
       <summary>Map</summary>
       <div class="row">
         <label for="basemap">Basemap</label>
@@ -120,6 +126,7 @@
         <li><b>Forecast zones:</b> <a href="https://gis.utah.gov/products/sgid/recreation/avalanche-center-forecast-zones/" target="_blank" rel="noopener">UGRC – UAC Forecast Zones</a></li>
         <li><b>Route ratings:</b> <a href="https://utahavalanchecenter.org/education/selected-routes" target="_blank" rel="noopener">Utah Avalanche Center route ratings</a></li>
         <li><b>Elevation bands:</b> UAC Salt Lake advisories (&lt;8,000′, 8,000–9,500′, &gt;9,500′)</li>
+        <li><b>Alta snow:</b> Open-Meteo models and ensembles, corrected against the Atwater SNOTEL; see <a href="forecast.html">the forecast page</a> for the method.</li>
       </ul>
     </details>
   </aside>
@@ -128,6 +135,8 @@
 
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="dem.js"></script>
+  <script src="snow.js"></script>
+  <script src="forecast-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

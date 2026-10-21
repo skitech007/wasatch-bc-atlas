@@ -1,0 +1,275 @@
+{
+  "what": "Observed \u00f7 forecast precipitation at Alta, per model and lead day (forecast made N days ahead). Multiply a model's forecast water by its factor.",
+  "observed": "NRCS SNOTEL 1308:UT:SNTL (Atwater, Alta, 8,750 ft), daily accumulated precipitation, differenced",
+  "forecast": "Open-Meteo Previous Runs API, point 40.5884, -111.6386 at 3,016 m",
+  "seasons": [
+    "2024-11-15 to 2025-04-15",
+    "2025-11-15 to 2026-04-15"
+  ],
+  "observed_in": 66.9,
+  "generated": "2026-10-21",
+  "factors": {
+    "ncep_nbm_conus": {
+      "1": 0.977,
+      "2": 1.089,
+      "3": 1.125,
+      "4": 1.104,
+      "5": 1.129,
+      "6": 1.117,
+      "7": 1.038
+    },
+    "ecmwf_ifs025": {
+      "1": 2.881,
+      "2": 2.705,
+      "3": 2.739,
+      "4": 2.79,
+      "5": 2.877,
+      "6": 3.06,
+      "7": 2.907
+    },
+    "gfs_global": {
+      "1": 1.464,
+      "2": 1.553,
+      "3": 1.506,
+      "4": 1.547,
+      "5": 3.381,
+      "6": 5.029,
+      "7": 4.853
+    },
+    "gem_seamless": {
+      "1": 0.99,
+      "2": 0.965,
+      "3": 1.521,
+      "4": 1.388,
+      "5": 1.45,
+      "6": 1.411,
+      "7": 1.503
+    }
+  },
+  "daily_mae_in": {
+    "ncep_nbm_conus": {
+      "1": 0.101,
+      "2": 0.115,
+      "3": 0.135,
+      "4": 0.153,
+      "5": 0.168,
+      "6": 0.187,
+      "7": 0.202
+    },
+    "ecmwf_ifs025": {
+      "1": 0.13,
+      "2": 0.138,
+      "3": 0.158,
+      "4": 0.17,
+      "5": 0.189,
+      "6": 0.216,
+      "7": 0.212
+    },
+    "gfs_global": {
+      "1": 0.103,
+      "2": 0.117,
+      "3": 0.154,
+      "4": 0.178,
+      "5": 0.179,
+      "6": 0.214,
+      "7": 0.22
+    },
+    "gem_seamless": {
+      "1": 0.132,
+      "2": 0.138,
+      "3": 0.15,
+      "4": 0.159,
+      "5": 0.206,
+      "6": 0.231,
+      "7": 0.213
+    }
+  },
+  "blend_weights": {
+    "ncep_nbm_conus": {
+      "1": 0.284,
+      "2": 0.274,
+      "3": 0.275,
+      "4": 0.269,
+      "5": 0.275,
+      "6": 0.282,
+      "7": 0.262
+    },
+    "ecmwf_ifs025": {
+      "1": 0.221,
+      "2": 0.228,
+      "3": 0.235,
+      "4": 0.242,
+      "5": 0.244,
+      "6": 0.244,
+      "7": 0.249
+    },
+    "gfs_global": {
+      "1": 0.278,
+      "2": 0.269,
+      "3": 0.241,
+      "4": 0.231,
+      "5": 0.258,
+      "6": 0.246,
+      "7": 0.24
+    },
+    "gem_seamless": {
+      "1": 0.217,
+      "2": 0.228,
+      "3": 0.248,
+      "4": 0.259,
+      "5": 0.224,
+      "6": 0.228,
+      "7": 0.248
+    }
+  },
+  "totals": {
+    "ncep_nbm_conus": {
+      "1": {
+        "observed": 66.9,
+        "forecast": 68.46,
+        "days": 304
+      },
+      "2": {
+        "observed": 66.9,
+        "forecast": 61.44,
+        "days": 304
+      },
+      "3": {
+        "observed": 66.9,
+        "forecast": 59.48,
+        "days": 304
+      },
+      "4": {
+        "observed": 66.9,
+        "forecast": 60.61,
+        "days": 304
+      },
+      "5": {
+        "observed": 66.9,
+        "forecast": 59.25,
+        "days": 304
+      },
+      "6": {
+        "observed": 66.9,
+        "forecast": 59.91,
+        "days": 304
+      },
+      "7": {
+        "observed": 66.9,
+        "forecast": 64.46,
+        "days": 304
+      }
+    },
+    "ecmwf_ifs025": {
+      "1": {
+        "observed": 66.9,
+        "forecast": 23.23,
+        "days": 304
+      },
+      "2": {
+        "observed": 66.9,
+        "forecast": 24.73,
+        "days": 304
+      },
+      "3": {
+        "observed": 66.9,
+        "forecast": 24.42,
+        "days": 304
+      },
+      "4": {
+        "observed": 66.9,
+        "forecast": 23.98,
+        "days": 304
+      },
+      "5": {
+        "observed": 66.9,
+        "forecast": 23.25,
+        "days": 304
+      },
+      "6": {
+        "observed": 66.9,
+        "forecast": 21.86,
+        "days": 304
+      },
+      "7": {
+        "observed": 66.9,
+        "forecast": 23.02,
+        "days": 304
+      }
+    },
+    "gfs_global": {
+      "1": {
+        "observed": 66.9,
+        "forecast": 45.69,
+        "days": 304
+      },
+      "2": {
+        "observed": 66.9,
+        "forecast": 43.07,
+        "days": 304
+      },
+      "3": {
+        "observed": 66.9,
+        "forecast": 44.42,
+        "days": 304
+      },
+      "4": {
+        "observed": 66.9,
+        "forecast": 43.25,
+        "days": 304
+      },
+      "5": {
+        "observed": 66.9,
+        "forecast": 19.79,
+        "days": 304
+      },
+      "6": {
+        "observed": 66.9,
+        "forecast": 13.3,
+        "days": 304
+      },
+      "7": {
+        "observed": 66.9,
+        "forecast": 13.78,
+        "days": 304
+      }
+    },
+    "gem_seamless": {
+      "1": {
+        "observed": 66.9,
+        "forecast": 67.61,
+        "days": 304
+      },
+      "2": {
+        "observed": 66.9,
+        "forecast": 69.3,
+        "days": 304
+      },
+      "3": {
+        "observed": 66.9,
+        "forecast": 43.99,
+        "days": 304
+      },
+      "4": {
+        "observed": 66.9,
+        "forecast": 48.19,
+        "days": 304
+      },
+      "5": {
+        "observed": 66.5,
+        "forecast": 45.85,
+        "days": 302
+      },
+      "6": {
+        "observed": 66.9,
+        "forecast": 47.4,
+        "days": 304
+      },
+      "7": {
+        "observed": 66.9,
+        "forecast": 44.52,
+        "days": 304
+      }
+    }
+  }
+}
