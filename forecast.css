@@ -14,6 +14,7 @@
   padding: 10px 16px; background: rgba(17, 22, 28, 0.94); border-bottom: 1px solid var(--line); backdrop-filter: blur(6px);
 }
 .fc-head h1 { font-size: 18px; margin: 0; }
+.fc-head .badge { width: 40px; height: 40px; flex: 0 0 40px; }
 .fc-head > div { flex: 1; min-width: 0; }
 .fc-head .back { white-space: nowrap; text-decoration: none; font-size: 13px; }
 .warn { color: #ffb067; }

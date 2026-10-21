@@ -596,14 +596,14 @@ async function loadAltaSnow() {
   const el = document.getElementById('alta-mini');
   const marker = document.createElement('a');
   marker.className = 'alta-marker'; marker.href = 'forecast.html'; marker.title = 'Alta forecast point, 9,895 ft';
-  marker.textContent = '❄ Alta';
+  marker.innerHTML = '<img src="badge.svg" alt=""><span>Alta</span>';
   new maplibregl.Marker({ element: marker, anchor: 'bottom' }).setLngLat([POINT.lon, POINT.lat]).addTo(map);
   try {
     const b = build(await fetchAll(false));
     const max = Math.max(4, ...b.days.map(d => d.snow || 0));
     const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
     const next5 = tot(0, 5);
-    marker.textContent = `❄ Alta ${next5}"`;
+    marker.querySelector('span').textContent = `Alta ${next5}"`;
     marker.title = `Alta: ${next5}" in the next 5 days. Open the full forecast.`;
     el.innerHTML = `<div class="alta-tots">${[[0, 5, '1–5 days'], [5, 10, '6–10'], [10, 15, '11–15']].map(([a, z, l]) => `<div><b>${tot(a, z)}"</b><span>${l}</span></div>`).join('')}</div>
       <div class="alta-bars">${b.days.map(d => {
