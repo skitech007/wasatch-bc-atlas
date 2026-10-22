@@ -12,7 +12,7 @@ function renderWater(s) {
   const rows = s.leads.filter(l => l.days).map(l => {
     const cells = [['blend', l.water.blend], ...s.models.map(m => [m.id, l.water.raw[m.id]])];
     const best = Math.min(...cells.map(c => c[1]).filter(v => v != null));
-    return `<tr><th>${leadName(l.lead)}<small>${l.days} days · ${l.wetDays} wet</small></th>
+    return `<tr><th>${leadName(l.lead)}<small>${l.days} days · ${l.wetDays} wet${l.reconstructedDays ? ` · ${l.reconstructedDays} ↺` : ''}</small></th>
       ${cells.map(([id, v]) => `<td class="${v === best ? 'best' : ''} ${id === 'blend' ? 'blendcol' : ''}">${f2(v)}"</td>`).join('')}
       <td class="muted">${l.water.bias == null ? '–' : (l.water.bias > 0 ? '+' : '') + l.water.bias.toFixed(2) + '"'}</td></tr>`;
   });
@@ -31,7 +31,7 @@ function renderTemp(s) {
 }
 
 function renderRecent(s) {
-  const fc = f => f ? `${f2(f.water)}" <small>${f1(f.snow)}" snow · ${r0(f.hi)}°/${r0(f.lo)}°</small>` : '<span class="muted">–</span>';
+  const fc = f => f ? `${f.reconstructed ? '<span class="recon" title="Reconstructed">↺</span>' : ''}${f2(f.water)}" <small>${f1(f.snow)}" snow · ${r0(f.hi)}°/${r0(f.lo)}°</small>` : '<span class="muted">–</span>';
   $('recent').innerHTML = s.recent.length ? `<table class="mtable score recent">
     <thead><tr><th></th><th>Measured</th><th>Forecast 1 day out</th><th>3 days out</th><th>5 days out</th></tr></thead>
     <tbody>${s.recent.map(o => `<tr><th>${day(o.date)}</th>
@@ -54,7 +54,10 @@ function renderWind(s) {
     const r = await fetch('api/scorecard');
     if (!r.ok) throw new Error(`${r.status}: the scorecard only runs on the deployed site`);
     const s = await r.json();
-    $('status').textContent = s.since ? `Tracking since ${day(s.since)} · ${s.snapshots} forecasts saved` : 'No forecasts saved yet';
+    $('status').textContent = s.since
+      ? `${s.snapshots} forecasts since ${day(s.since)}: ${s.snapshots - s.reconstructed} saved live${s.liveSince ? ` (from ${day(s.liveSince)})` : ''}, ${s.reconstructed} reconstructed ↺`
+      : 'No forecasts saved yet';
+    $('recon-note').hidden = !s.reconstructed;
     renderWater(s); renderTemp(s); renderRecent(s); renderWind(s);
   } catch (e) {
     $('status').innerHTML = `<span class="warn">Couldn't load the scorecard (${e.message}).</span>`;

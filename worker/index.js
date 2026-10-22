@@ -194,7 +194,7 @@ async function scorecard(env) {
   const [snaps, obs, corr] = await Promise.all([getAll(env, 'snap:'), getAll(env, 'obs:'), env.SCORE.get('corrections', 'json')]);
   // forecasts[date][lead] = that day's forecast made `lead` days earlier
   const forecasts = {};
-  for (const s of Object.values(snaps)) for (const d of s.days) (forecasts[d.date] ||= {})[d.lead] = d;
+  for (const s of Object.values(snaps)) for (const d of s.days) (forecasts[d.date] ||= {})[d.lead] = { ...d, reconstructed: !!s.reconstructed };
 
   const leads = LEADS.map(lead => {
     const pairs = Object.values(obs).filter(o => o.water != null && forecasts[o.date]?.[lead]).map(o => [o, forecasts[o.date][lead]]);
@@ -202,7 +202,7 @@ async function scorecard(env) {
     const mae = f => round(mean(err((o, fc) => { const v = f(o, fc); return v == null ? null : Math.abs(v); })));
     const wet = pairs.filter(([o, fc]) => o.water >= 0.1 || fc.water >= 0.1);
     return {
-      lead, days: pairs.length, wetDays: wet.length,
+      lead, days: pairs.length, wetDays: wet.length, reconstructedDays: pairs.filter(([, fc]) => fc.reconstructed).length,
       water: {
         blend: mae((o, fc) => fc.water - o.water),
         bias: round(mean(err((o, fc) => fc.water - o.water))),
@@ -219,8 +219,10 @@ async function scorecard(env) {
   }));
   return {
     since: Object.keys(snaps).sort()[0] || null, snapshots: Object.keys(snaps).length,
+    liveSince: Object.keys(snaps).filter(k => !snaps[k].reconstructed).sort()[0] || null,
+    reconstructed: Object.values(snaps).filter(x => x.reconstructed).length,
     models: MODELS.map(m => ({ id: m.id, name: m.name })), leads, recent, wind: corr?.wind || null,
     point: POINT,
   };
 }
-const pick = d => d ? { water: d.water, snow: d.snow, hi: d.hi, lo: d.lo } : null;
+const pick = d => d ? { water: d.water, snow: d.snow, hi: d.hi, lo: d.lo, reconstructed: d.reconstructed } : null;

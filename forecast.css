@@ -151,3 +151,11 @@ code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: 
 .score.recent td small { display: inline; margin-left: 4px; }
 .fc-head .score-link { font-size: 13px; white-space: nowrap; text-decoration: none; }
 @media (max-width: 720px) { .fc-head .score-link { display: none; } }
+.recon { color: #f0b35a; margin-right: 4px; font-weight: 700; }
+.recon-note { font-size: 13px; line-height: 1.5; margin: 0; }
+.recon-note b { color: #f0b35a; }
+.mtable.score th:first-child { min-width: 104px; }
+@media (max-width: 720px) {
+  .mtable.score th, .mtable.score td { padding: 5px 5px; font-size: 12px; }
+  .mtable.score th small { display: block; margin-left: 0; }
+}
