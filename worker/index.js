@@ -120,7 +120,12 @@ async function observed(env, today) {
 
 // Hidden Peak hourly wind, merged into per-day keys
 async function windObs(env) {
-  const d = await getJSON(`https://api.weather.gov/stations/${WIND_STATION}/observations?limit=200`);
+  // The NWS refuses requests without a User-Agent, which Workers don't send by default
+  const r = await fetch(`https://api.weather.gov/stations/${WIND_STATION}/observations?limit=200`, {
+    headers: { 'User-Agent': 'wasatch-bc-atlas (https://wasatch-bc-atlas.mattsanford.workers.dev)', Accept: 'application/geo+json' },
+  });
+  if (!r.ok) throw new Error(`${r.status} from api.weather.gov`);
+  const d = await r.json();
   const hours = {};
   for (const f of d.features || []) {
     const p = f.properties, ws = p.windSpeed?.value, wg = p.windGust?.value;
