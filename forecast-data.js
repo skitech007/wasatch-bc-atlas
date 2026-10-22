@@ -26,8 +26,48 @@ const ENSEMBLES = [
 const leadOf = hoursAhead => Math.min(7, Math.max(1, Math.ceil((hoursAhead + 1) / 24)));
 const factorAt = (calib, model, lead) => calib?.factors?.[model]?.[lead] ?? 1;
 const weightsAt = (calib, lead) => Object.fromEntries(MODELS.map(m => [m.id, calib?.blend_weights?.[m.id]?.[lead] ?? 1]));
-// Temperature correction (°F to add) measured at Atwater, by lead day and day (7 am–7 pm) or night
-const tempBiasAt = (calib, model, lead, hour) => calib?.temperature_bias_f?.[model]?.[lead]?.[hour >= 7 && hour < 19 ? 'day' : 'night'] ?? 0;
+// Temperature correction (°F to add), measured at Atwater in 3-hour blocks of Mountain Standard
+// Time (SNOTEL's clock). Two parts, averaged: a by-month table from the calibration, and a rolling
+// 14-day bias per lead day that the nightly worker re-measures (absent locally: table only).
+// The bias swings with the season and snow cover, so neither works well alone.
+function isDst(date) {
+  // US rules: second Sunday of March to first Sunday of November
+  const y = +date.slice(0, 4);
+  const nthSunday = (m, n) => { const d = new Date(Date.UTC(y, m, 1)); return 1 + (7 - d.getUTCDay()) % 7 + 7 * (n - 1); };
+  const start = `${y}-03-${String(nthSunday(2, 2)).padStart(2, '0')}`, end = `${y}-11-${String(nthSunday(10, 1)).padStart(2, '0')}`;
+  return date >= start && date < end;
+}
+function mstOf(key) {
+  const h = (hourOf(key) - (isDst(dateOf(key)) ? 1 : 0) + 24) % 24;
+  return { month: +key.slice(5, 7), block: Math.floor(h / 3) };
+}
+function tempBiasAt(calib, roll, model, lead, key) {
+  const { month, block } = mstOf(key);
+  const a = calib?.temperature_bias_month_3h?.[model]?.[month]?.[block] ?? 0;
+  const b = roll?.[model]?.[lead]?.[block];
+  return b == null ? a : (a + b) / 2;
+}
+// Rolling bias: mean observed − forecast over the 14 days before `asOf`, per model, lead day and
+// 3-hour MST block. `prev` is Open-Meteo Previous Runs hourly data at Atwater (timezone GMT);
+// `obs` maps UTC hour keys to Atwater °F. Shared by the worker and tools/backfill_scorecard.mjs.
+function rollingTempBias(prev, obs, asOf, days = 14) {
+  const out = {}, from = asOf - days * 864e5;
+  for (const m of MODELS) {
+    out[m.id] = {};
+    for (let lead = 1; lead <= 7; lead++) {
+      const sum = Array(8).fill(0), n = Array(8).fill(0);
+      const f = prev[`temperature_2m_previous_day${lead}_${m.id}`];
+      prev.time.forEach((t, i) => {
+        const ms = Date.parse(t + ':00Z');
+        if (ms < from || ms >= asOf || f?.[i] == null || obs[t] == null) return;
+        const blk = Math.floor(((new Date(ms).getUTCHours() - 7 + 24) % 24) / 3);
+        sum[blk] += obs[t] - f[i]; n[blk]++;
+      });
+      out[m.id][lead] = sum.map((v, k) => n[k] >= 10 ? Math.round(v / n[k] * 100) / 100 : null);
+    }
+  }
+  return out;
+}
 // Storm direction from the 700 mb wind; sectors match tools/calibrate_alta.py
 function flowSector(deg) {
   if (deg == null) return null;
@@ -82,7 +122,7 @@ function expandNws(series, { spread = false, scale = 1 } = {}) {
 }
 
 // ---------- fetching ----------
-const CACHE_KEY = 'alta-forecast-v4';
+const CACHE_KEY = 'alta-forecast-v5';
 const CACHE_MIN = 20;
 
 async function getJSON(url) {
@@ -164,6 +204,7 @@ function build({ data }) {
   const ensIndex = eh ? Object.fromEntries(eh.time.map((t, i) => [t, i])) : {};
   const nowIdx = Math.max(0, det.time.indexOf(nowKey));
   const windFactor = data.corrections?.wind?.active ? data.corrections.wind : null;
+  const roll = data.corrections?.temperature?.bias || null;
 
   // Storm direction per calendar day: speed-weighted mean 700 mb wind across the models that
   // have it (NBM doesn't), the same daily measure the calibration used
@@ -185,7 +226,7 @@ function build({ data }) {
     const per = {};
     for (const m of MODELS) {
       const g = v => det[`${v}_${m.id}`]?.[i] ?? null;
-      const bias = tempBiasAt(calib, m.id, lead, hourOf(t));
+      const bias = tempBiasAt(calib, roll, m.id, lead, t);
       const x = {
         water: g('precipitation'), tempRaw: g('temperature_2m'), temp700F: g('temperature_700hPa'),
         app: g('apparent_temperature'), rh: g('relative_humidity_2m'), ws: g('wind_speed_10m'),
@@ -212,7 +253,7 @@ function build({ data }) {
       for (const mb of members) {
         if (ei == null || mb.p[ei] == null || mb.t[ei] == null) continue;
         const ml = Math.min(7, mb.ens.maxLead);
-        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, mb.ens.parent, 7, hourOf(t)) },
+        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, roll, mb.ens.parent, 7, t) },
           factorAt(calib, mb.ens.parent, ml) * directionAt(calib, mb.ens.parent, sector));
         s += r.snow; w += r.water;
       }
@@ -263,7 +304,7 @@ function build({ data }) {
         const w = mb.p[i], tf = mb.t[i];
         if (w == null || tf == null) return;
         const ml = Math.min(lead, mb.ens.maxLead);
-        const s = SNOW.hour({ water: w, tempF: tf + tempBiasAt(calib, mb.ens.parent, ml, hourOf(t)) },
+        const s = SNOW.hour({ water: w, tempF: tf + tempBiasAt(calib, roll, mb.ens.parent, ml, t) },
           factorAt(calib, mb.ens.parent, ml) * directionAt(calib, mb.ens.parent, flowSector(flowDeg[dateOf(t)]))).snow;
         memberDay[j][day] = (memberDay[j][day] || 0) + s;
         memberPeriod[j][per] = (memberPeriod[j][per] || 0) + s;
@@ -347,6 +388,6 @@ function build({ data }) {
 
 // When imported as a module (the worker), these become globals as they already are in the browser
 Object.assign(globalThis, {
-  POINT, ATWATER, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, flowSector,
+  POINT, ATWATER, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
   localKey, dateOf, hourOf, addDays, dow, dom, skiDay, getJSON, omQuery, fetchAll, build,
 });

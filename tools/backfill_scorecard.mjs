@@ -31,7 +31,7 @@ globalThis.Date = class extends RealDate {
 
 await import(pathToFileURL(path.join(root, 'snow.js')));
 await import(pathToFileURL(path.join(root, 'forecast-data.js')));
-const { MODELS, POINT, ATWATER, TZ, build, leadOf, dateOf, addDays } = globalThis;
+const { MODELS, POINT, ATWATER, TZ, build, leadOf, dateOf, addDays, rollingTempBias } = globalThis;
 const calib = JSON.parse(fs.readFileSync(path.join(root, 'data/alta_calibration.json'), 'utf8'));
 const ids = MODELS.map(m => m.id);
 const round = (v, d = 2) => v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d;
@@ -46,7 +46,16 @@ const prev = (point, v, unit) => get('https://previous-runs-api.open-meteo.com/v
   latitude: point.lat, longitude: point.lon, elevation: point.elevM, start_date: first, end_date: end, timezone: TZ,
   hourly: [1, 2, 3, 4, 5, 6, 7].map(n => `${v}_previous_day${n}`).join(','), models: ids.join(','), ...unit,
 }));
-const [precip, temp, tempAtw, flow, obsRaw] = await Promise.all([
+// Atwater temperatures and past forecasts there, from 16 days before the first morning, for the
+// rolling temperature correction each morning would have had
+const rollStart = addDays(first, -16);
+const prevAtw = get('https://previous-runs-api.open-meteo.com/v1/forecast?' + new URLSearchParams({
+  latitude: ATWATER.lat, longitude: ATWATER.lon, elevation: ATWATER.elevM, start_date: rollStart, end_date: last, timezone: 'GMT',
+  hourly: [1, 2, 3, 4, 5, 6, 7].map(n => `temperature_2m_previous_day${n}`).join(','), models: ids.join(','), temperature_unit: 'fahrenheit',
+}));
+const tobsRaw = get('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL&elements=TOBS&duration=HOURLY'
+  + `&beginDate=${rollStart}%2000:00&endDate=${addDays(last, 1)}%2001:00`);
+const [precip, temp, tempAtw, flow, obsRaw, prevAtwData, tobsData] = await Promise.all([
   prev(POINT, 'precipitation', { precipitation_unit: 'inch' }),
   prev(POINT, 'temperature_2m', { temperature_unit: 'fahrenheit' }),
   prev(ATWATER, 'temperature_2m', { temperature_unit: 'fahrenheit' }),
@@ -55,8 +64,19 @@ const [precip, temp, tempAtw, flow, obsRaw] = await Promise.all([
     hourly: 'wind_direction_700hPa,wind_speed_700hPa', models: 'gfs_global',
   })),
   get('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL'
-    + `&elements=PREC,SNWD,TMAX,TMIN&duration=DAILY&beginDate=${addDays(first, -1)}&endDate=${last}`),
+    + `&elements=PREC,SNWD&duration=DAILY&beginDate=${addDays(first, -1)}&endDate=${last}`),
+  prevAtw, tobsRaw,
 ]);
+// Same glitch filter and MST→UTC keying as the worker's snotelHourlyUtc
+const tobsUtc = {};
+{
+  let prevV = null;
+  for (const { date, value } of tobsData[0].data[0].values) {
+    if (value == null || value <= -40 || value >= 85 || (prevV != null && Math.abs(value - prevV) > 15)) { if (value != null) prevV = value; continue; }
+    prevV = value;
+    tobsUtc[new RealDate(RealDate.parse(date.replace(' ', 'T') + ':00Z') + 7 * 3600e3).toISOString().slice(0, 13) + ':00'] = value;
+  }
+}
 const idx = Object.fromEntries(precip.hourly.time.map((t, i) => [t, i]));
 
 // The hourly block a run made that morning would have given, the way the live page sees it
@@ -74,8 +94,9 @@ function detFor(made, src, vars) {
 const out = [];
 for (let made = first; made <= last; made = addDays(made, 1)) {
   fakeNow = new RealDate(`${made}T06:30:00-06:00`).getTime();  // 6:30 am MDT, when the worker runs
-  const b = build({ data: { calib, det: detFor(made, null, [['precipitation', precip], ['temperature_2m', temp]]) } });
-  const atw = build({ data: { calib, det: detFor(made, null, [['temperature_2m', tempAtw]]) } });
+  const corrections = { temperature: { bias: rollingTempBias(prevAtwData.hourly, tobsUtc, fakeNow) } };
+  const b = build({ data: { calib, corrections, det: detFor(made, null, [['precipitation', precip], ['temperature_2m', temp]]) } });
+  const atw = build({ data: { calib, corrections, det: detFor(made, null, [['temperature_2m', tempAtw]]) } });
   // Same per-day summary the worker saves (calendar days, to match SNOTEL)
   const byDate = (hours, f) => {
     const o = {};
@@ -103,7 +124,14 @@ for (let made = first; made <= last; made = addDays(made, 1)) {
 // Atwater readings for the same stretch, in the worker's format
 const series = code => Object.fromEntries((obsRaw[0].data.find(e => e.stationElement.elementCode === code)?.values || [])
   .map(v => [v.date.slice(0, 10), v.value]));
-const P = series('PREC'), D = series('SNWD'), HI = series('TMAX'), LO = series('TMIN');
+const P = series('PREC'), D = series('SNWD');
+// High and low from the hourly readings by local calendar day, as the worker does (hourlyHiLo)
+const HI = {}, LO = {};
+{
+  const byDay = {};
+  for (const [k, v] of Object.entries(tobsUtc)) (byDay[dateOf(globalThis.localKey(new RealDate(k + ':00Z')))] ||= []).push(v);
+  for (const [day, v] of Object.entries(byDay)) if (v.length >= 20) { HI[day] = Math.max(...v); LO[day] = Math.min(...v); }
+}
 const dates = Object.keys(P).sort();
 for (let i = 1; i < dates.length; i++) {
   const day = dates[i], p0 = dates[i - 1];

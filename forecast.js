@@ -262,13 +262,18 @@ function renderMethod(b, data) {
         return `<td title="${det.wet_days} wet days; unshrunk ${pct(det.raw)}">${pct(c.direction_multipliers[m.id][sct])}</td>`;
       }).join('')}</tr>`).join('');
   }
-  if (c.temperature_bias_f) {
-    const sg = v => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}°`;
-    $('method-temp').innerHTML = MODELS.map(m => {
-      const tb = c.temperature_bias_f[m.id], tm = c.temperature_mae_f[m.id][1].day;
-      return `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th><td>${sg(tb[1].day)}</td><td>${sg(tb[1].night)}</td>
-        <td>${sg(tb[5].day)}</td><td>${sg(tb[5].night)}</td><td>${tm.before.toFixed(1)}° → ${tm.after.toFixed(1)}°</td></tr>`;
-    }).join('');
+  if (c.temperature_bias_month_3h) {
+    // Combined correction now in use for each 3-hour MST block, 1 day out
+    const month = +b.today.slice(5, 7), roll = data.corrections?.temperature?.bias;
+    const sg = v => v == null ? '–' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}°`;
+    $('method-temp').innerHTML = MODELS.map(m => `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th>
+      ${[0, 1, 2, 3, 4, 5, 6, 7].map(k => {
+        const a = c.temperature_bias_month_3h[m.id][month][k], r = roll?.[m.id]?.[1]?.[k];
+        return `<td title="month table ${sg(a)} · last 14 days ${sg(r)}">${sg(r == null ? a : (a + r) / 2)}</td>`;
+      }).join('')}</tr>`).join('');
+    $('method-temp-note').textContent = roll
+      ? `Hover a cell for its two parts. Blocks are Mountain Standard Time; add an hour while daylight saving is on.`
+      : `Only the month table is in use here (the rolling part comes from the deployed site's nightly job). Blocks are Mountain Standard Time.`;
   }
   const w = b.windFactor || data.corrections?.wind;
   if (w) $('method-wind').textContent = w.active

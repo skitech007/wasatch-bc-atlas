@@ -4,15 +4,17 @@
 // KV keys (binding SCORE):
 //   snap:<date>  forecast made that morning: per-day water/snow (corrected blend and raw models),
 //                Atwater high/low (corrected and raw), and hourly raw wind for the next 8 days
-//   obs:<date>   Atwater SNOTEL: water, depth gain, high, low
+//   obs:<date>   Atwater SNOTEL: water, depth gain, and high/low from the hourly readings (the same
+//                on-the-hour sampling as the forecast; SNOTEL's own daily TMAX runs ~1°F higher)
 //   wind:<date>  Hidden Peak hourly wind and gust (mph), kept because NWS only holds about a week
-//   corrections  wind factors learned from snap + wind, read by the forecast page
+//   corrections  { temperature: rolling 14-day bias at Atwater, wind: factors learned from snap + wind },
+//                read by the forecast page and by tomorrow's snapshot
 
 import '../snow.js';
 import '../forecast-data.js';
 import calib from '../data/alta_calibration.json';
 
-const { MODELS, POINT, ATWATER, HOURLY_VARS, omQuery, getJSON, build, localKey, dateOf, addDays } = globalThis;
+const { MODELS, POINT, ATWATER, TZ, HOURLY_VARS, omQuery, getJSON, build, rollingTempBias, localKey, dateOf, addDays } = globalThis;
 const LEADS = [1, 2, 3, 4, 5, 6, 7];
 const WIND_STATION = 'HDP';     // Hidden Peak, 11,000 ft, the nearest ridgetop wind in the NWS feed
 const WIND_MIN_DAYS = 14;       // matched days before the wind correction switches on
@@ -43,10 +45,12 @@ export default {
 // ---------- nightly ----------
 async function nightly(env) {
   const today = dateOf(localKey(new Date()));
-  const results = await Promise.allSettled([snapshot(env, today), observed(env, today), windObs(env)]);
-  const report = Object.fromEntries(['snapshot', 'observed', 'wind'].map((k, i) =>
-    [k, results[i].status === 'fulfilled' ? results[i].value : `failed: ${results[i].reason?.message || results[i].reason}`]));
-  report.corrections = await learnWind(env).catch(e => `failed: ${e.message}`);
+  const settle = async (name, p) => { try { report[name] = await p; } catch (e) { report[name] = `failed: ${e.message || e}`; } };
+  const report = {};
+  // The temperature correction is re-learned first so this morning's snapshot uses it
+  await Promise.all([settle('temperature', learnTemp(env, today)), settle('observed', observed(env, today)), settle('wind', windObs(env))]);
+  await settle('snapshot', snapshot(env, today));
+  await settle('corrections', learnWind(env));
   return report;
 }
 
@@ -96,13 +100,18 @@ async function snapshot(env, today) {
   return { days: days.length, windHours: windHours.length };
 }
 
-// Atwater SNOTEL daily readings for the last 10 days (rewritten each night in case of late fixes)
+// Atwater SNOTEL readings for the last 10 days (rewritten each night in case of late fixes)
 async function observed(env, today) {
-  const d = await getJSON('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL'
-    + `&elements=PREC,SNWD,TMAX,TMIN&duration=DAILY&beginDate=${addDays(today, -11)}&endDate=${addDays(today, -1)}`);
+  const [d, h] = await Promise.all([
+    getJSON('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL'
+      + `&elements=PREC,SNWD&duration=DAILY&beginDate=${addDays(today, -11)}&endDate=${addDays(today, -1)}`),
+    getJSON('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL'
+      + `&elements=TOBS&duration=HOURLY&beginDate=${addDays(today, -11)}%2000:00&endDate=${today}%2001:00`),
+  ]);
   const series = code => Object.fromEntries((d[0].data.find(e => e.stationElement.elementCode === code)?.values || [])
     .map(v => [v.date.slice(0, 10), v.value]));
-  const P = series('PREC'), D = series('SNWD'), HI = series('TMAX'), LO = series('TMIN');
+  const P = series('PREC'), D = series('SNWD');
+  const { hi: HI, lo: LO } = hourlyHiLo(snotelHourlyUtc(h[0].data[0].values));
   const dates = Object.keys(P).sort();
   let n = 0;
   for (let i = 1; i < dates.length; i++) {
@@ -145,6 +154,50 @@ async function windObs(env) {
   return { hours: Object.keys(hours).length };
 }
 
+// Rolling 14-day temperature bias at Atwater: each model's forecasts 1–7 days ahead vs the sensor
+async function learnTemp(env, today) {
+  const start = addDays(today, -16);
+  const [prev, tobs] = await Promise.all([
+    getJSON('https://previous-runs-api.open-meteo.com/v1/forecast?' + new URLSearchParams({
+      latitude: ATWATER.lat, longitude: ATWATER.lon, elevation: ATWATER.elevM, start_date: start, end_date: today,
+      hourly: [1, 2, 3, 4, 5, 6, 7].map(n => `temperature_2m_previous_day${n}`).join(','),
+      models: MODELS.map(m => m.id).join(','), temperature_unit: 'fahrenheit', timezone: 'GMT',
+    })),
+    getJSON('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL&elements=TOBS&duration=HOURLY'
+      + `&beginDate=${start}%2000:00&endDate=${today}%2023:00`),
+  ]);
+  const obs = snotelHourlyUtc(tobs[0].data[0].values);
+  const bias = rollingTempBias(prev.hourly, obs, Date.now());
+  await mergeCorrections(env, { temperature: { bias, days: 14, station: 'Atwater SNOTEL', updated: new Date().toISOString() } });
+  return { hours: Object.keys(obs).length };
+}
+
+// SNOTEL hourly readings are in Mountain Standard Time all year; key them by UTC hour, dropping glitches
+function snotelHourlyUtc(values) {
+  const out = {};
+  let prev = null;
+  for (const { date, value } of values) {
+    if (value == null || value <= -40 || value >= 85 || (prev != null && Math.abs(value - prev) > 15)) { if (value != null) prev = value; continue; }
+    prev = value;
+    out[new Date(Date.parse(date.replace(' ', 'T') + ':00Z') + 7 * 3600e3).toISOString().slice(0, 13) + ':00'] = value;
+  }
+  return out;
+}
+
+// Daily high and low of the hourly readings, by local calendar day like the forecast (needs 20+ hours)
+function hourlyHiLo(obsUtc) {
+  const byDay = {};
+  for (const [k, v] of Object.entries(obsUtc)) (byDay[dateOf(localKey(new Date(k + ':00Z')))] ||= []).push(v);
+  const hi = {}, lo = {};
+  for (const [day, v] of Object.entries(byDay)) if (v.length >= 20) { hi[day] = Math.max(...v); lo[day] = Math.min(...v); }
+  return { hi, lo };
+}
+
+async function mergeCorrections(env, patch) {
+  const c = (await env.SCORE.get('corrections', 'json')) || {};
+  await env.SCORE.put('corrections', JSON.stringify({ ...c, ...patch }));
+}
+
 // Compare stored raw forecast wind (1–7 days ahead) with what Hidden Peak measured
 async function learnWind(env) {
   const snaps = await getAll(env, 'snap:');
@@ -165,16 +218,14 @@ async function learnWind(env) {
       if (o[1] != null && fg != null) { go += o[1]; gf += fg; }
     });
   }
-  const c = {
-    wind: {
-      station: 'Hidden Peak (HDP), 11,000 ft', days: days.size, hours,
-      active: days.size >= WIND_MIN_DAYS && sf > 0,
-      speed: sf ? round(so / sf, 3) : null, gust: gf ? round(go / gf, 3) : null,
-      needDays: WIND_MIN_DAYS, updated: new Date().toISOString(),
-    },
+  const wind = {
+    station: 'Hidden Peak (HDP), 11,000 ft', days: days.size, hours,
+    active: days.size >= WIND_MIN_DAYS && sf > 0,
+    speed: sf ? round(so / sf, 3) : null, gust: gf ? round(go / gf, 3) : null,
+    needDays: WIND_MIN_DAYS, updated: new Date().toISOString(),
   };
-  await env.SCORE.put('corrections', JSON.stringify(c));
-  return c.wind;
+  await mergeCorrections(env, { wind });
+  return wind;
 }
 
 async function getAll(env, prefix) {

@@ -4,7 +4,10 @@ Three corrections, all against the NRCS Atwater SNOTEL (1308:UT:SNTL, 8,750 ft, 
   1. Precipitation: observed ÷ forecast water, per model and lead day.
   2. Storm direction: how that ratio changes with the 700 mb wind direction (NW, W, SW, other),
      per model, shrunk toward 1 when a direction has few wet days.
-  3. Temperature: mean observed − forecast °F, per model, lead day, and day/night.
+  3. Temperature: mean observed − forecast °F, per model, calendar month and 3-hour block of the
+     day (MST), from 1-day-ahead forecasts over every month in the archive. The bias swings with the
+     season (4–6°F on winter nights, 0–2°F in fall), so a winter-only number made fall lows worse.
+     The forecast averages this with a rolling 14-day bias the nightly worker measures.
 
 Forecasts come from Open-Meteo's Previous Runs archive (what each model said N days before);
 past 700 mb wind direction from Open-Meteo's archived short-range GFS. Wind can't be calibrated
@@ -13,7 +16,7 @@ Writes data/alta_calibration.json.
 
 Run: python3 -I tools/calibrate_alta.py
 """
-import json, math, urllib.request, datetime as dt, pathlib
+import json, math, time, urllib.request, datetime as dt, pathlib
 from collections import defaultdict
 
 FC_LAT, FC_LON, FC_ELEV_M = 40.5884, -111.6386, 3016   # 9,895 ft, OpenSnow's Alta forecast point
@@ -24,13 +27,20 @@ LEADS = range(1, 8)
 # Winter months only, when Alta's precipitation is mostly snow. The Previous Runs archive starts in 2024.
 SEASONS = [('2024-11-15', '2025-04-15'), ('2025-11-15', '2026-04-15')]
 MST = dt.timedelta(hours=-7)  # SNOTEL reports in local standard time all year
+TEMP_START = dt.date(2024, 3, 1)  # Previous Runs archive start, near enough
 SHRINK_DAYS = 15              # a direction needs about this many wet days before its multiplier counts fully
 
 
-def get(url):
-    req = urllib.request.Request(url, headers={'User-Agent': 'wasatch-bc-atlas'})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return json.load(r)
+def get(url, tries=5):
+    for k in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'wasatch-bc-atlas'})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return json.load(r)
+        except Exception:
+            if k == tries - 1:
+                raise
+            time.sleep(5 * (k + 1))
 
 
 def snotel(element, duration, start, end):
@@ -53,7 +63,7 @@ def observed_water(start, end):
 def observed_temps(start, end):
     """Hourly °F keyed by UTC hour 'YYYY-MM-DDTHH:00', with sensor glitches dropped."""
     out, prev = {}, None
-    for d, v in snotel('TOBS', 'HOURLY', f'{start}%2000:00', f'{end}%2023:00'):
+    for d, v in snotel('TOBS', 'HOURLY', f'{start}%2000:00', f'{end}%2023:00'):  # USDA errors on long hourly ranges; keep spans to ~2 months
         if v is None or not -40 < v < 85 or (prev is not None and abs(v - prev) > 15):
             prev = v if v is not None else prev
             continue
@@ -100,7 +110,6 @@ def sector(deg):
 
 # ---------- gather ----------
 water_pairs = {m: {n: [] for n in LEADS} for m in MODELS}   # (date, observed, forecast)
-temp_err = {m: {n: {'day': [], 'night': []} for n in LEADS} for m in MODELS}
 flow = {}
 observed_total = 0.0
 for start, end in SEASONS:
@@ -119,19 +128,6 @@ for start, end in SEASONS:
                 if seen.get(day) == 24:
                     water_pairs[m][n].append((day, o, daily[day]))
 
-    tobs = observed_temps(start, end)
-    h = previous_runs(ST_LAT, ST_LON, ST_ELEV_M, 'temperature_2m', start, end, '&temperature_unit=fahrenheit')
-    for i, t in enumerate(h['time']):
-        o = tobs.get(t)
-        if o is None:
-            continue
-        local_hour = (dt.datetime.fromisoformat(t) + MST).hour
-        part = 'day' if 7 <= local_hour < 19 else 'night'
-        for m in MODELS:
-            for n in LEADS:
-                f = h[f'temperature_2m_previous_day{n}_{m}'][i]
-                if f is not None:
-                    temp_err[m][n][part].append(o - f)
     print(start, 'done')
 
 # ---------- precipitation by lead ----------
@@ -172,20 +168,32 @@ for m in MODELS:
         direction_detail[m][s] = {'raw': round(raw, 3), 'wet_days': round(wet), 'observed_in': round(o / 3, 2)}
 
 # ---------- temperature ----------
+# Every month in the archive, in ~2-month chunks (USDA's hourly endpoint errors on long ranges)
+temp_err = {m: defaultdict(list) for m in MODELS}   # (month, 3-hour block) -> observed − forecast
+# Leave out the last 45 days: the rolling correction covers recent weeks, and it keeps the scorecard's
+# reconstructed days (tools/backfill_scorecard.mjs) out of the data they're tested against
+a, last = TEMP_START, dt.date.today() - dt.timedelta(days=45)
+while a <= last:
+    b = min(a + dt.timedelta(days=60), last)
+    tobs = observed_temps(a.isoformat(), b.isoformat())
+    h = previous_runs(ST_LAT, ST_LON, ST_ELEV_M, 'temperature_2m', a.isoformat(), b.isoformat(), '&temperature_unit=fahrenheit')
+    for i, t in enumerate(h['time']):
+        o = tobs.get(t)
+        if o is None:
+            continue
+        local = dt.datetime.fromisoformat(t) + MST
+        for m in MODELS:
+            f = h[f'temperature_2m_previous_day1_{m}'][i]
+            if f is not None:
+                temp_err[m][(local.month, local.hour // 3)].append(o - f)
+    a = b + dt.timedelta(days=1)
+print('temperature done')
 temp_bias, temp_mae = {}, {}
 for m in MODELS:
-    temp_bias[m], temp_mae[m] = {}, {}
-    for n in LEADS:
-        temp_bias[m][n], temp_mae[m][n] = {}, {}
-        for part in ('day', 'night'):
-            e = temp_err[m][n][part]
-            b = sum(e) / len(e) if e else 0.0
-            temp_bias[m][n][part] = round(b, 2)
-            temp_mae[m][n][part] = {
-                'before': round(sum(abs(x) for x in e) / len(e), 2) if e else None,
-                'after': round(sum(abs(x - b) for x in e) / len(e), 2) if e else None,
-                'hours': len(e),
-            }
+    temp_bias[m] = {str(mo): [round(sum(e) / len(e), 2) if (e := temp_err[m][(mo, blk)]) else 0.0 for blk in range(8)] for mo in range(1, 13)}
+    allE = [x for e in temp_err[m].values() for x in e]
+    after = [x - temp_bias[m][str(mo)][blk] for (mo, blk), e in temp_err[m].items() for x in e]
+    temp_mae[m] = {'before': round(sum(map(abs, allE)) / len(allE), 2), 'after': round(sum(map(abs, after)) / len(after), 2), 'hours': len(allE)}
 
 out = {
     'what': "How each model misses at Alta, per lead day (forecast made N days ahead).",
@@ -202,7 +210,8 @@ out = {
     'direction_sectors': {'NW': '285°–15°', 'W': '225°–285°', 'SW': '135°–225°', 'other': '15°–135°'},
     'direction_multipliers': direction,
     'direction_detail': direction_detail,
-    'temperature_bias_f': temp_bias,
+    'temperature_bias_month_3h': temp_bias,
+    'temperature_bias_note': 'observed − forecast °F by calendar month and 3-hour MST block (0 = midnight–3 am), 1-day-ahead forecasts at Atwater, all months from 2024-03 to 45 days before generation',
     'temperature_mae_f': temp_mae,
 }
 path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'alta_calibration.json'
@@ -210,5 +219,5 @@ path.write_text(json.dumps(out, indent=2) + '\n')
 for m in MODELS:
     print(f'{m:16}', ' '.join(f'd{n}:×{factors[m][n]:.2f}' for n in LEADS))
     print(' ' * 17 + 'flow ' + ' '.join(f'{s}:×{direction[m][s]:.2f}(raw {direction_detail[m][s]["raw"]:.2f}, {direction_detail[m][s]["wet_days"]}d)' for s in direction[m]))
-    print(' ' * 17 + 'temp ' + ' '.join(f'd{n}:{temp_bias[m][n]["day"]:+.1f}/{temp_bias[m][n]["night"]:+.1f}' for n in LEADS)
-          + f'  MAE d1 {temp_mae[m][1]["day"]["before"]}→{temp_mae[m][1]["day"]["after"]}')
+    print(' ' * 17 + 'temp Jan ' + ' '.join(f'{v:+.1f}' for v in temp_bias[m]['1']) + ' | Oct ' + ' '.join(f'{v:+.1f}' for v in temp_bias[m]['10'])
+          + f'  MAE {temp_mae[m]["before"]}→{temp_mae[m]["after"]}')
