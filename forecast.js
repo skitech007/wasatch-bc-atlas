@@ -145,6 +145,7 @@ function renderModels(b) {
     ${b.days.map(d => `<td>${d.nws == null ? '<span class="muted">·</span>' : d.nws < 0.05 ? '0' : d.nws.toFixed(1)}</td>`).join('')}<td class="tot">${Math.round(nwsTot)}"</td></tr>`);
   rows.push(`<tr class="ensrow"><th>Ensemble median <small>${b.memberCount} runs</small></th>
     ${b.days.map(d => `<td>${d.ens ? d.ens.p50.toFixed(1) : '·'}</td>`).join('')}<td class="tot">${Math.round(b.days.reduce((s, d) => s + (d.ens?.p50 || 0), 0))}"</td></tr>`);
+  rows.push(`<tr class="ensrow"><th>Storm flow <small>700 mb wind</small></th>${b.days.map(d => `<td>${d.sector ? (d.sector === 'other' ? '·' : d.sector) : '·'}</td>`).join('')}<td></td></tr>`);
   rows.push(`<tr class="blendrow"><th>Alta blend</th>${b.days.map(d => `<td class="${isPowder(d.snow) ? 'pw' : ''}">${d.snow == null ? '·' : d.snow.toFixed(1)}</td>`).join('')}
     <td class="tot">${Math.round(b.days.reduce((s, d) => s + (d.snow || 0), 0))}"</td></tr>`);
   $('models').innerHTML = `<table class="mtable"><thead><tr><th>Snow by day, inches <small>(Alta-corrected)</small></th>
@@ -253,6 +254,26 @@ function renderMethod(b, data) {
   $('method-factors').innerHTML = MODELS.map(m => `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th>
     ${leads.map(n => `<td title="${c.totals[m.id][n].forecast}&quot; forecast vs ${c.totals[m.id][n].observed}&quot; measured over ${c.totals[m.id][n].days} days · blend weight ${Math.round(100 * c.blend_weights[m.id][n])}%">×${c.factors[m.id][n].toFixed(2)}</td>`).join('')}</tr>`).join('');
   $('method-seasons').textContent = c.seasons.map(s => s.slice(0, 4) + '–' + s.slice(16, 18)).join(' and ');
+  const pct = v => v == null ? '–' : `${v >= 1 ? '+' : '−'}${Math.abs(Math.round((v - 1) * 100))}%`;
+  if (c.direction_multipliers) {
+    $('method-direction').innerHTML = MODELS.map(m => `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th>
+      ${['NW', 'W', 'SW', 'other'].map(sct => {
+        const det = c.direction_detail[m.id][sct];
+        return `<td title="${det.wet_days} wet days; unshrunk ${pct(det.raw)}">${pct(c.direction_multipliers[m.id][sct])}</td>`;
+      }).join('')}</tr>`).join('');
+  }
+  if (c.temperature_bias_f) {
+    const sg = v => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}°`;
+    $('method-temp').innerHTML = MODELS.map(m => {
+      const tb = c.temperature_bias_f[m.id], tm = c.temperature_mae_f[m.id][1].day;
+      return `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th><td>${sg(tb[1].day)}</td><td>${sg(tb[1].night)}</td>
+        <td>${sg(tb[5].day)}</td><td>${sg(tb[5].night)}</td><td>${tm.before.toFixed(1)}° → ${tm.after.toFixed(1)}°</td></tr>`;
+    }).join('');
+  }
+  const w = b.windFactor || data.corrections?.wind;
+  if (w) $('method-wind').textContent = w.active
+    ? `Forecast wind is scaled ×${w.speed.toFixed(2)} and gusts ×${w.gust.toFixed(2)}, learned from ${w.days} days of Hidden Peak (11,000 ft) readings vs what was forecast 1–7 days earlier, so it reads as upper-mountain wind.`
+    : `Learning: ${w.days} of ${w.needDays} days of Hidden Peak (11,000 ft) readings matched so far; the correction switches on by itself after that. Until then wind is the uncorrected model blend.`;
 }
 
 // ---------- tooltip ----------

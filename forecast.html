@@ -16,6 +16,7 @@
       <h1>Alta <span class="muted">· forecast point 9,895 ft</span><img src="alta-mountain.svg" alt="" class="mountain-logo"></h1>
       <p class="sub" id="status">Loading forecast…</p>
     </div>
+    <a href="scorecard.html" class="score-link" title="How accurate this forecast has been">Scorecard</a>
     <button id="refresh" title="Fetch fresh data">Refresh</button>
   </header>
 
@@ -29,7 +30,7 @@
         <span class="odds-label">Chance of 6"+</span>
         <div id="odds" class="odds"></div>
       </div>
-      <p class="hint">Bars are the Alta blend. The thin line on each bar is the likely range, from how much the ensemble runs disagree. Orange = 6"+ day.</p>
+      <p class="hint">Bars are the Alta blend. The thin line on each bar is the likely range, from how much the ensemble runs disagree. Orange = 6"+ day. <a href="scorecard.html">How accurate has it been? Scorecard →</a></p>
     </section>
 
     <section class="card">
@@ -67,6 +68,12 @@
         <li><b>Alta correction.</b> The models smooth the Wasatch into blobs and miss how much falls at Alta. For the winters of <span id="method-seasons"></span> (Nov 15 – Apr 15) we compared what each model forecast 1 to 7 days ahead with what fell at the Atwater SNOTEL, and multiply each model's water by its factor for that lead day (days 8–15 use day 7):
           <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>1 day out</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead><tbody id="method-factors"></tbody></table></div>
           GFS jumps at day 5 and GEM at day 3, where each model switches to a coarser grid. Models with smaller day-to-day error after correction get more weight in the blend (hover a factor for details). Rerun <code>tools/calibrate_alta.py</code> to refresh.</li>
+        <li><b>Storm direction.</b> Alta does best in northwest flow and the models know it least well. Each day is labelled by its 700 mb (about 10,000 ft) wind: NW, W, SW or other. Over the same two winters each model's misses were split by that label, and its water is scaled again for the day's direction. Directions with few wet days are pulled toward no change:
+          <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>NW</th><th>W</th><th>SW</th><th>Other</th></tr></thead><tbody id="method-direction"></tbody></table></div></li>
+        <li><b>Temperature.</b> Each model's hourly temperature was compared with the Atwater sensor, by lead day, separately for day (7 am–7 pm) and night, and the average miss is added back:
+          <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>Day, 1 day out</th><th>Night, 1 day out</th><th>Day, 5 days out</th><th>Night, 5 days out</th><th>Typical miss before → after</th></tr></thead><tbody id="method-temp"></tbody></table></div>
+          The corrected temperature also feeds the rain/snow split and the snow ratio. Atwater sits at 8,750 ft, so this assumes each model's miss is the same at 9,895 ft.</li>
+        <li><b>Wind.</b> <span id="method-wind">No SNOTEL near Alta measures wind, so the nightly scorecard worker saves Hidden Peak's readings and learns the correction from them.</span></li>
         <li><b>Rain or snow.</b> From the temperature at 9,895 ft: all snow at 32°F or colder, all rain at 37.4°F or warmer, a straight line between (Jennings et al. 2018).</li>
         <li><b>Snow ratio.</b> Kuchera method: 12:1 at about 29°F, heavier above, lighter below, from the warmer of the 9,895 ft and 700 mb temperatures.</li>
         <li><b>Days 8–15.</b> The corrections are only measured out to 7 days, and a single model run that far out is mostly noise, so from day 8 the snow and water are the average of all 82 ensemble runs rather than the four-model blend. The model table still shows each model's own run.</li>

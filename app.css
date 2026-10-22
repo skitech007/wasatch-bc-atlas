@@ -137,7 +137,7 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .alta-bars i { display: block; width: 70%; background: #3987e5; border-radius: 2px 2px 0 0; }
 .alta-bars i.powder { background: var(--orange); }
 .alta-bars span { font-size: 9px; color: var(--muted); margin-top: 2px; }
-.alta-link { display: inline-block; font-size: 12px; margin: 6px 0 2px; }
+.alta-link { display: block; font-size: 12px; margin: 6px 0 2px; }
 .alta-marker {
   background: #11161c; color: #e6ebf0; border: 1px solid #5fb3ff; border-radius: 12px;
   padding: 3px 8px; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap;

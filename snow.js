@@ -68,3 +68,6 @@ const SNOW = (() => {
 
   return { snowFraction, kuchera, hour, blend, blendDirection, quantile, compass };
 })();
+
+// When imported as a module (the worker), make SNOW a global as it already is in the browser
+globalThis.SNOW = SNOW;

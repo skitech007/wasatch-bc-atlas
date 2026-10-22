@@ -1,274 +1,865 @@
 {
-  "what": "Observed \u00f7 forecast precipitation at Alta, per model and lead day (forecast made N days ahead). Multiply a model's forecast water by its factor.",
-  "observed": "NRCS SNOTEL 1308:UT:SNTL (Atwater, Alta, 8,750 ft), daily accumulated precipitation, differenced",
-  "forecast": "Open-Meteo Previous Runs API, point 40.5884, -111.6386 at 3,016 m",
+  "what": "How each model misses at Alta, per lead day (forecast made N days ahead).",
+  "observed": "NRCS SNOTEL 1308:UT:SNTL (Atwater, Alta, 8,750 ft): daily accumulated precipitation (differenced) and hourly air temperature",
+  "forecast": "Open-Meteo Previous Runs API; precipitation at 40.5884, -111.6386, 3,016 m; temperature at the Atwater site, 2,667 m",
+  "flow": "Daily speed-weighted 700 mb wind direction from Open-Meteo archived short-range GFS",
   "seasons": [
     "2024-11-15 to 2025-04-15",
     "2025-11-15 to 2026-04-15"
   ],
   "observed_in": 66.9,
-  "generated": "2026-10-21",
+  "generated": "2026-10-22",
   "factors": {
     "ncep_nbm_conus": {
-      "1": 0.977,
-      "2": 1.089,
-      "3": 1.125,
-      "4": 1.104,
+      "1": 0.976,
+      "2": 1.088,
+      "3": 1.123,
+      "4": 1.103,
       "5": 1.129,
-      "6": 1.117,
-      "7": 1.038
+      "6": 1.116,
+      "7": 1.037
     },
     "ecmwf_ifs025": {
-      "1": 2.881,
-      "2": 2.705,
-      "3": 2.739,
-      "4": 2.79,
-      "5": 2.877,
-      "6": 3.06,
-      "7": 2.907
+      "1": 2.883,
+      "2": 2.715,
+      "3": 2.735,
+      "4": 2.792,
+      "5": 2.873,
+      "6": 3.073,
+      "7": 2.903
     },
     "gfs_global": {
-      "1": 1.464,
-      "2": 1.553,
-      "3": 1.506,
-      "4": 1.547,
-      "5": 3.381,
-      "6": 5.029,
-      "7": 4.853
+      "1": 1.463,
+      "2": 1.551,
+      "3": 1.504,
+      "4": 1.545,
+      "5": 3.376,
+      "6": 5.021,
+      "7": 4.86
     },
     "gem_seamless": {
-      "1": 0.99,
-      "2": 0.965,
-      "3": 1.521,
-      "4": 1.388,
+      "1": 0.988,
+      "2": 0.964,
+      "3": 1.519,
+      "4": 1.386,
       "5": 1.45,
-      "6": 1.411,
-      "7": 1.503
+      "6": 1.409,
+      "7": 1.507
     }
   },
   "daily_mae_in": {
     "ncep_nbm_conus": {
-      "1": 0.101,
+      "1": 0.098,
       "2": 0.115,
-      "3": 0.135,
-      "4": 0.153,
+      "3": 0.134,
+      "4": 0.152,
       "5": 0.168,
-      "6": 0.187,
+      "6": 0.188,
       "7": 0.202
     },
     "ecmwf_ifs025": {
-      "1": 0.13,
-      "2": 0.138,
-      "3": 0.158,
-      "4": 0.17,
-      "5": 0.189,
-      "6": 0.216,
-      "7": 0.212
+      "1": 0.129,
+      "2": 0.14,
+      "3": 0.16,
+      "4": 0.176,
+      "5": 0.191,
+      "6": 0.217,
+      "7": 0.217
     },
     "gfs_global": {
       "1": 0.103,
-      "2": 0.117,
-      "3": 0.154,
-      "4": 0.178,
-      "5": 0.179,
+      "2": 0.115,
+      "3": 0.15,
+      "4": 0.174,
+      "5": 0.175,
       "6": 0.214,
-      "7": 0.22
+      "7": 0.222
     },
     "gem_seamless": {
-      "1": 0.132,
-      "2": 0.138,
+      "1": 0.133,
+      "2": 0.14,
       "3": 0.15,
-      "4": 0.159,
-      "5": 0.206,
-      "6": 0.231,
-      "7": 0.213
+      "4": 0.16,
+      "5": 0.207,
+      "6": 0.233,
+      "7": 0.216
     }
   },
   "blend_weights": {
     "ncep_nbm_conus": {
-      "1": 0.284,
-      "2": 0.274,
-      "3": 0.275,
-      "4": 0.269,
-      "5": 0.275,
+      "1": 0.29,
+      "2": 0.275,
+      "3": 0.276,
+      "4": 0.271,
+      "5": 0.274,
       "6": 0.282,
-      "7": 0.262
+      "7": 0.265
     },
     "ecmwf_ifs025": {
-      "1": 0.221,
-      "2": 0.228,
-      "3": 0.235,
-      "4": 0.242,
-      "5": 0.244,
+      "1": 0.22,
+      "2": 0.225,
+      "3": 0.231,
+      "4": 0.234,
+      "5": 0.241,
       "6": 0.244,
-      "7": 0.249
+      "7": 0.247
     },
     "gfs_global": {
-      "1": 0.278,
-      "2": 0.269,
-      "3": 0.241,
-      "4": 0.231,
-      "5": 0.258,
-      "6": 0.246,
-      "7": 0.24
+      "1": 0.276,
+      "2": 0.275,
+      "3": 0.246,
+      "4": 0.237,
+      "5": 0.263,
+      "6": 0.247,
+      "7": 0.241
     },
     "gem_seamless": {
-      "1": 0.217,
-      "2": 0.228,
-      "3": 0.248,
-      "4": 0.259,
-      "5": 0.224,
-      "6": 0.228,
+      "1": 0.214,
+      "2": 0.225,
+      "3": 0.246,
+      "4": 0.258,
+      "5": 0.222,
+      "6": 0.227,
       "7": 0.248
     }
   },
   "totals": {
     "ncep_nbm_conus": {
       "1": {
-        "observed": 66.9,
-        "forecast": 68.46,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 68.42,
+        "days": 302
       },
       "2": {
-        "observed": 66.9,
-        "forecast": 61.44,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 61.42,
+        "days": 302
       },
       "3": {
-        "observed": 66.9,
-        "forecast": 59.48,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 59.46,
+        "days": 302
       },
       "4": {
-        "observed": 66.9,
-        "forecast": 60.61,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 60.56,
+        "days": 302
       },
       "5": {
-        "observed": 66.9,
-        "forecast": 59.25,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 59.18,
+        "days": 302
       },
       "6": {
-        "observed": 66.9,
-        "forecast": 59.91,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 59.88,
+        "days": 302
       },
       "7": {
-        "observed": 66.9,
-        "forecast": 64.46,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 64.41,
+        "days": 302
       }
     },
     "ecmwf_ifs025": {
       "1": {
-        "observed": 66.9,
-        "forecast": 23.23,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 23.17,
+        "days": 302
       },
       "2": {
-        "observed": 66.9,
-        "forecast": 24.73,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 24.61,
+        "days": 302
       },
       "3": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 24.42,
-        "days": 304
+        "days": 302
       },
       "4": {
-        "observed": 66.9,
-        "forecast": 23.98,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 23.93,
+        "days": 302
       },
       "5": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 23.25,
-        "days": 304
+        "days": 302
       },
       "6": {
-        "observed": 66.9,
-        "forecast": 21.86,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 21.74,
+        "days": 302
       },
       "7": {
-        "observed": 66.9,
-        "forecast": 23.02,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 23.01,
+        "days": 302
       }
     },
     "gfs_global": {
       "1": {
-        "observed": 66.9,
-        "forecast": 45.69,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 45.65,
+        "days": 302
       },
       "2": {
-        "observed": 66.9,
-        "forecast": 43.07,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 43.06,
+        "days": 302
       },
       "3": {
-        "observed": 66.9,
-        "forecast": 44.42,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 44.41,
+        "days": 302
       },
       "4": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 43.25,
-        "days": 304
+        "days": 302
       },
       "5": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 19.79,
-        "days": 304
+        "days": 302
       },
       "6": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 13.3,
-        "days": 304
+        "days": 302
       },
       "7": {
-        "observed": 66.9,
-        "forecast": 13.78,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 13.74,
+        "days": 302
       }
     },
     "gem_seamless": {
       "1": {
-        "observed": 66.9,
-        "forecast": 67.61,
-        "days": 304
-      },
-      "2": {
-        "observed": 66.9,
-        "forecast": 69.3,
-        "days": 304
-      },
-      "3": {
-        "observed": 66.9,
-        "forecast": 43.99,
-        "days": 304
-      },
-      "4": {
-        "observed": 66.9,
-        "forecast": 48.19,
-        "days": 304
-      },
-      "5": {
-        "observed": 66.5,
-        "forecast": 45.85,
+        "observed": 66.8,
+        "forecast": 67.6,
         "days": 302
       },
+      "2": {
+        "observed": 66.8,
+        "forecast": 69.29,
+        "days": 302
+      },
+      "3": {
+        "observed": 66.8,
+        "forecast": 43.99,
+        "days": 302
+      },
+      "4": {
+        "observed": 66.8,
+        "forecast": 48.19,
+        "days": 302
+      },
+      "5": {
+        "observed": 66.4,
+        "forecast": 45.8,
+        "days": 300
+      },
       "6": {
-        "observed": 66.9,
+        "observed": 66.8,
         "forecast": 47.4,
-        "days": 304
+        "days": 302
       },
       "7": {
-        "observed": 66.9,
-        "forecast": 44.52,
-        "days": 304
+        "observed": 66.8,
+        "forecast": 44.33,
+        "days": 302
+      }
+    }
+  },
+  "direction_sectors": {
+    "NW": "285\u00b0\u201315\u00b0",
+    "W": "225\u00b0\u2013285\u00b0",
+    "SW": "135\u00b0\u2013225\u00b0",
+    "other": "15\u00b0\u2013135\u00b0"
+  },
+  "direction_multipliers": {
+    "ncep_nbm_conus": {
+      "NW": 1.081,
+      "W": 1.017,
+      "SW": 0.909,
+      "other": 1.021
+    },
+    "ecmwf_ifs025": {
+      "NW": 1.134,
+      "W": 1.02,
+      "SW": 0.889,
+      "other": 0.983
+    },
+    "gfs_global": {
+      "NW": 1.006,
+      "W": 1.086,
+      "SW": 0.905,
+      "other": 0.997
+    },
+    "gem_seamless": {
+      "NW": 1.208,
+      "W": 1.034,
+      "SW": 0.853,
+      "other": 1.055
+    }
+  },
+  "direction_detail": {
+    "ncep_nbm_conus": {
+      "NW": {
+        "raw": 1.176,
+        "wet_days": 13,
+        "observed_in": 23.0
+      },
+      "W": {
+        "raw": 1.037,
+        "wet_days": 12,
+        "observed_in": 29.4
+      },
+      "SW": {
+        "raw": 0.746,
+        "wet_days": 8,
+        "observed_in": 13.7
+      },
+      "other": {
+        "raw": 1.33,
+        "wet_days": 1,
+        "observed_in": 0.7
+      }
+    },
+    "ecmwf_ifs025": {
+      "NW": {
+        "raw": 1.292,
+        "wet_days": 13,
+        "observed_in": 23.0
+      },
+      "W": {
+        "raw": 1.044,
+        "wet_days": 12,
+        "observed_in": 29.4
+      },
+      "SW": {
+        "raw": 0.689,
+        "wet_days": 8,
+        "observed_in": 13.7
+      },
+      "other": {
+        "raw": 0.729,
+        "wet_days": 1,
+        "observed_in": 0.7
+      }
+    },
+    "gfs_global": {
+      "NW": {
+        "raw": 1.013,
+        "wet_days": 13,
+        "observed_in": 23.0
+      },
+      "W": {
+        "raw": 1.191,
+        "wet_days": 12,
+        "observed_in": 29.4
+      },
+      "SW": {
+        "raw": 0.733,
+        "wet_days": 8,
+        "observed_in": 13.7
+      },
+      "other": {
+        "raw": 0.957,
+        "wet_days": 1,
+        "observed_in": 0.7
+      }
+    },
+    "gem_seamless": {
+      "NW": {
+        "raw": 1.455,
+        "wet_days": 13,
+        "observed_in": 23.0
+      },
+      "W": {
+        "raw": 1.075,
+        "wet_days": 12,
+        "observed_in": 29.4
+      },
+      "SW": {
+        "raw": 0.589,
+        "wet_days": 8,
+        "observed_in": 13.7
+      },
+      "other": {
+        "raw": 1.875,
+        "wet_days": 1,
+        "observed_in": 0.7
+      }
+    }
+  },
+  "temperature_bias_f": {
+    "ncep_nbm_conus": {
+      "1": {
+        "day": -5.11,
+        "night": -2.86
+      },
+      "2": {
+        "day": -3.33,
+        "night": -1.18
+      },
+      "3": {
+        "day": -4.97,
+        "night": -2.82
+      },
+      "4": {
+        "day": -4.9,
+        "night": -2.67
+      },
+      "5": {
+        "day": -2.76,
+        "night": -0.33
+      },
+      "6": {
+        "day": -2.66,
+        "night": -0.22
+      },
+      "7": {
+        "day": -2.6,
+        "night": -0.2
+      }
+    },
+    "ecmwf_ifs025": {
+      "1": {
+        "day": 2.45,
+        "night": 4.04
+      },
+      "2": {
+        "day": 2.4,
+        "night": 3.99
+      },
+      "3": {
+        "day": 2.59,
+        "night": 4.14
+      },
+      "4": {
+        "day": 2.56,
+        "night": 4.14
+      },
+      "5": {
+        "day": 2.66,
+        "night": 4.42
+      },
+      "6": {
+        "day": 2.81,
+        "night": 4.28
+      },
+      "7": {
+        "day": 3.0,
+        "night": 4.86
+      }
+    },
+    "gfs_global": {
+      "1": {
+        "day": 1.88,
+        "night": 2.6
+      },
+      "2": {
+        "day": 1.97,
+        "night": 2.76
+      },
+      "3": {
+        "day": 2.1,
+        "night": 2.89
+      },
+      "4": {
+        "day": 2.21,
+        "night": 2.95
+      },
+      "5": {
+        "day": 2.34,
+        "night": 2.97
+      },
+      "6": {
+        "day": 2.61,
+        "night": 3.33
+      },
+      "7": {
+        "day": 2.72,
+        "night": 3.39
+      }
+    },
+    "gem_seamless": {
+      "1": {
+        "day": 2.43,
+        "night": 3.07
+      },
+      "2": {
+        "day": 2.84,
+        "night": 3.52
+      },
+      "3": {
+        "day": 0.62,
+        "night": 2.86
+      },
+      "4": {
+        "day": 0.94,
+        "night": 3.13
+      },
+      "5": {
+        "day": 1.32,
+        "night": 3.63
+      },
+      "6": {
+        "day": 1.99,
+        "night": 4.21
+      },
+      "7": {
+        "day": 2.56,
+        "night": 4.58
+      }
+    }
+  },
+  "temperature_mae_f": {
+    "ncep_nbm_conus": {
+      "1": {
+        "day": {
+          "before": 6.59,
+          "after": 5.4,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.86,
+          "after": 5.01,
+          "hours": 3628
+        }
+      },
+      "2": {
+        "day": {
+          "before": 5.24,
+          "after": 4.25,
+          "hours": 3635
+        },
+        "night": {
+          "before": 3.67,
+          "after": 3.58,
+          "hours": 3628
+        }
+      },
+      "3": {
+        "day": {
+          "before": 7.08,
+          "after": 6.14,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.75,
+          "after": 5.84,
+          "hours": 3628
+        }
+      },
+      "4": {
+        "day": {
+          "before": 7.46,
+          "after": 6.6,
+          "hours": 3635
+        },
+        "night": {
+          "before": 6.22,
+          "after": 6.33,
+          "hours": 3628
+        }
+      },
+      "5": {
+        "day": {
+          "before": 5.93,
+          "after": 5.35,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.6,
+          "after": 4.59,
+          "hours": 3628
+        }
+      },
+      "6": {
+        "day": {
+          "before": 6.21,
+          "after": 5.7,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.09,
+          "after": 5.09,
+          "hours": 3628
+        }
+      },
+      "7": {
+        "day": {
+          "before": 6.54,
+          "after": 6.12,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.71,
+          "after": 5.71,
+          "hours": 3628
+        }
+      }
+    },
+    "ecmwf_ifs025": {
+      "1": {
+        "day": {
+          "before": 3.66,
+          "after": 3.36,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.32,
+          "after": 2.77,
+          "hours": 3628
+        }
+      },
+      "2": {
+        "day": {
+          "before": 3.64,
+          "after": 3.36,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.36,
+          "after": 2.91,
+          "hours": 3628
+        }
+      },
+      "3": {
+        "day": {
+          "before": 3.91,
+          "after": 3.54,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.66,
+          "after": 3.12,
+          "hours": 3628
+        }
+      },
+      "4": {
+        "day": {
+          "before": 4.16,
+          "after": 3.75,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.81,
+          "after": 3.34,
+          "hours": 3628
+        }
+      },
+      "5": {
+        "day": {
+          "before": 4.62,
+          "after": 4.16,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.28,
+          "after": 3.69,
+          "hours": 3628
+        }
+      },
+      "6": {
+        "day": {
+          "before": 4.87,
+          "after": 4.35,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.67,
+          "after": 4.47,
+          "hours": 3628
+        }
+      },
+      "7": {
+        "day": {
+          "before": 5.32,
+          "after": 4.8,
+          "hours": 3635
+        },
+        "night": {
+          "before": 6.5,
+          "after": 5.22,
+          "hours": 3628
+        }
+      }
+    },
+    "gfs_global": {
+      "1": {
+        "day": {
+          "before": 3.16,
+          "after": 2.94,
+          "hours": 3635
+        },
+        "night": {
+          "before": 3.48,
+          "after": 2.85,
+          "hours": 3628
+        }
+      },
+      "2": {
+        "day": {
+          "before": 3.39,
+          "after": 3.16,
+          "hours": 3635
+        },
+        "night": {
+          "before": 3.76,
+          "after": 3.16,
+          "hours": 3628
+        }
+      },
+      "3": {
+        "day": {
+          "before": 3.88,
+          "after": 3.58,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.22,
+          "after": 3.51,
+          "hours": 3628
+        }
+      },
+      "4": {
+        "day": {
+          "before": 4.32,
+          "after": 3.98,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.68,
+          "after": 3.94,
+          "hours": 3628
+        }
+      },
+      "5": {
+        "day": {
+          "before": 4.96,
+          "after": 4.58,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.13,
+          "after": 4.44,
+          "hours": 3628
+        }
+      },
+      "6": {
+        "day": {
+          "before": 5.51,
+          "after": 5.09,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.78,
+          "after": 5.05,
+          "hours": 3628
+        }
+      },
+      "7": {
+        "day": {
+          "before": 6.4,
+          "after": 5.92,
+          "hours": 3635
+        },
+        "night": {
+          "before": 6.97,
+          "after": 6.37,
+          "hours": 3628
+        }
+      }
+    },
+    "gem_seamless": {
+      "1": {
+        "day": {
+          "before": 3.3,
+          "after": 2.59,
+          "hours": 3635
+        },
+        "night": {
+          "before": 3.56,
+          "after": 2.21,
+          "hours": 3628
+        }
+      },
+      "2": {
+        "day": {
+          "before": 3.65,
+          "after": 2.75,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.01,
+          "after": 2.45,
+          "hours": 3628
+        }
+      },
+      "3": {
+        "day": {
+          "before": 4.06,
+          "after": 4.08,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.31,
+          "after": 3.64,
+          "hours": 3628
+        }
+      },
+      "4": {
+        "day": {
+          "before": 4.36,
+          "after": 4.38,
+          "hours": 3635
+        },
+        "night": {
+          "before": 4.79,
+          "after": 4.06,
+          "hours": 3628
+        }
+      },
+      "5": {
+        "day": {
+          "before": 4.87,
+          "after": 4.79,
+          "hours": 3635
+        },
+        "night": {
+          "before": 5.35,
+          "after": 4.35,
+          "hours": 3628
+        }
+      },
+      "6": {
+        "day": {
+          "before": 5.78,
+          "after": 5.59,
+          "hours": 3635
+        },
+        "night": {
+          "before": 6.37,
+          "after": 5.21,
+          "hours": 3628
+        }
+      },
+      "7": {
+        "day": {
+          "before": 6.35,
+          "after": 5.97,
+          "hours": 3635
+        },
+        "night": {
+          "before": 7.12,
+          "after": 5.97,
+          "hours": 3628
+        }
       }
     }
   }

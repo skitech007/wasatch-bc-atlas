@@ -1,0 +1,17 @@
+// Cloudflare Worker config: static site plus the nightly Alta scorecard (worker/index.js).
+// Deploy with: npx wrangler@4 deploy
+{
+  "name": "wasatch-bc-atlas",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-19",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [
+    { "binding": "SCORE", "id": "3407791d6d9949d6a20062d10d564e40" }
+  ],
+  // 12:30 UTC = 5:30 am MST / 6:30 am MDT, after the overnight model runs and SNOTEL's midnight reading
+  "triggers": { "crons": ["30 12 * * *"] }
+}

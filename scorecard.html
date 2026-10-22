@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alta Forecast Scorecard</title>
+  <link rel="icon" href="badge.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="forecast.css">
+</head>
+<body class="fc">
+  <header class="fc-head">
+    <a href="forecast.html" class="back" title="Back to the forecast">← Forecast</a>
+    <img src="badge.svg" alt="" class="badge">
+    <div>
+      <h1>Scorecard <span class="muted">· how the Alta forecast has done</span></h1>
+      <p class="sub" id="status">Loading…</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Water: average miss by how far ahead <span class="muted">· inches of melted snow per day, vs the Atwater gauge</span></h2>
+      <div id="water" class="scroll-x"></div>
+      <p class="hint">Each morning the worker saves the forecast for the next 7 days. Once a day has happened, each saved forecast for it is compared with what the Atwater SNOTEL (8,750 ft, in Alta) measured. "Alta blend" is this site's corrected forecast; the model columns are each model as other apps show it, uncorrected. Lower is better; the best in each row is highlighted.</p>
+    </section>
+
+    <section class="card">
+      <h2>Temperature: average miss <span class="muted">· °F at Atwater</span></h2>
+      <div id="temp" class="scroll-x"></div>
+      <p class="hint">Daily high and low, corrected blend vs the same blend without the temperature correction.</p>
+    </section>
+
+    <section class="card">
+      <h2>Day by day</h2>
+      <div id="recent" class="scroll-x"></div>
+    </section>
+
+    <section class="card">
+      <h2>Wind correction</h2>
+      <div id="wind"></div>
+    </section>
+  </main>
+
+  <script src="scorecard.js"></script>
+</body>
+</html>

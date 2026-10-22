@@ -143,3 +143,11 @@ code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: 
   .fc-head .mountain-logo { height: 28px; margin: -3px 0 -3px 8px; padding: 1px 4px; border-radius: 7px; }
   .fc-head .back { font-size: 12px; }
 }
+
+/* scorecard */
+.score td { text-align: center; }
+.score .blendcol { background: rgba(95, 179, 255, 0.08); font-weight: 600; }
+.score td.best { color: #7ee2a8; font-weight: 700; }
+.score.recent td small { display: inline; margin-left: 4px; }
+.fc-head .score-link { font-size: 13px; white-space: nowrap; text-decoration: none; }
+@media (max-width: 720px) { .fc-head .score-link { display: none; } }

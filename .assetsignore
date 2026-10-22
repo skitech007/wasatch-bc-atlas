@@ -1,0 +1,10 @@
+.git
+.gitignore
+.assetsignore
+.wrangler
+.dev.vars
+.claude
+wrangler.jsonc
+worker
+tools
+README.md
