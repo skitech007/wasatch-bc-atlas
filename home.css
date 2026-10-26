@@ -1,0 +1,72 @@
+/* Home: Alta 15-day snow, fitted to one screen, then the two doors. Builds on app.css tokens. */
+.home {
+  --s1: #3987e5;
+  --powder: #f08a24;
+  --card: #18202a;
+  min-height: 100%;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+  gap: 12px;
+  overflow: hidden;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.home-head { display: flex; align-items: center; gap: 12px; }
+.home-head .badge { width: 40px; height: 40px; }
+.home-head .title { flex: 1; min-width: 0; }
+.home-head h1 { margin: 0; font-size: 22px; line-height: 1.1; }
+.home-head .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.avy-chip {
+  display: inline-flex; flex-direction: column; align-items: flex-end; text-decoration: none;
+  padding: 5px 10px; border-radius: 8px; font-size: 11px; line-height: 1.2; border: 1px solid transparent;
+}
+.avy-chip b { font-size: 13px; }
+
+.snow {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 8px;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.totals div { text-align: center; }
+.totals b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.totals span { color: var(--muted); font-size: 11px; }
+.totals .obs b { color: var(--muted); }
+
+.chart { flex: 1; min-height: 180px; display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; position: relative; }
+.col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.col .v { font-size: 11px; font-weight: 700; height: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.col .area { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.col .area i { display: block; width: 78%; background: var(--s1); border-radius: 3px 3px 0 0; min-height: 2px; }
+.col .area i.powder { background: var(--powder); }
+.col .area em { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: #cfd8e3; opacity: 0.7; }
+.col .d { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.25; margin-top: 3px; }
+.col .d b { color: var(--text); font-weight: 600; }
+.col.wk { border-left: 1px dashed var(--line); }
+.col.today .d b { color: var(--accent); }
+.note { color: var(--muted); font-size: 11px; margin: 6px 0 0; }
+
+.doors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.door {
+  display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text);
+  background: var(--btn); border: 1px solid var(--line); border-radius: 14px; padding: 14px 12px; min-height: 72px;
+}
+.door:hover, .door:focus-visible { background: var(--btn-hover); }
+.door b { display: block; font-size: 18px; }
+.door small { color: var(--muted); font-size: 11px; line-height: 1.3; display: block; }
+.door-icon { font-size: 28px; }
+.door.bc { border-color: #2f5b3a; }
+.door.resort { border-color: #2c4d78; }
+
+.home-foot { display: flex; justify-content: space-between; font-size: 12px; }
+.linkish { background: none; border: 0; color: var(--accent); padding: 0; cursor: pointer; font: inherit; }
+
+@media (max-height: 640px) {
+  .totals b { font-size: 18px; }
+  .door { min-height: 60px; padding: 10px; }
+  .note { display: none; }
+}

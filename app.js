@@ -102,7 +102,10 @@ const state = {
   mask: store.get('mask', 0),
   minSlope: store.get('minSlope', 30),
   route: store.get('route', []),
+  routeName: store.get('routeName', null),
   pins: store.get('pins', []),
+  tours: null,
+  streams: null,
   drawing: false,
   pinning: false,
   avyPaths: null,
@@ -155,6 +158,11 @@ map.once('style.load', async () => {
 
   map.addSource('analysis', { type: 'raster', tiles: analysisTiles(), tileSize: 256, minzoom: 11, maxzoom: DEM_MAX_Z });
   map.addLayer({ id: 'analysis', type: 'raster', source: 'analysis', paint: { 'raster-opacity': 0.6, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } });
+  // Avalanche terrain tiles from tools/terrain_wasatch.py (zooms 11–14, over-zoomed above)
+  for (const id of ['ates', 'runout']) {
+    map.addSource(id, { type: 'raster', tiles: [`wbca://${id}/{z}/{x}/{y}`], tileSize: 256, minzoom: RUNOUT_MIN_Z, maxzoom: RUNOUT_MAX_Z });
+    map.addLayer({ id, type: 'raster', source: id, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } });
+  }
 
   const [paths, zones] = await Promise.all([
     fetch('data/avalanche_paths.geojson').then(r => r.json()),
@@ -175,6 +183,11 @@ map.once('style.load', async () => {
   map.addLayer({ id: 'avy-line', type: 'line', source: 'avy', paint: { 'line-color': '#ff3b6b', 'line-width': 1.2, 'line-opacity': 0.85 } });
   map.addLayer({ id: 'avy-label', type: 'symbol', source: 'avy', minzoom: 13, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 11, 'symbol-placement': 'point' }, paint: { 'text-color': '#ffd6df', 'text-halo-color': '#3a0010', 'text-halo-width': 1.2 } });
 
+  map.addSource('tours', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'tours-line', type: 'line', source: 'tours', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#c084fc', 'line-width': 2.5, 'line-dasharray': [2, 1.5], 'line-opacity': 0.9 } });
+  map.addLayer({ id: 'tours-hit', type: 'line', source: 'tours', paint: { 'line-color': '#000', 'line-width': 16, 'line-opacity': 0 } });
+  map.addLayer({ id: 'tours-label', type: 'symbol', source: 'tours', minzoom: 12, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 12 }, paint: { 'text-color': '#ecd9ff', 'text-halo-color': '#2a0a3a', 'text-halo-width': 1.4 } });
+
   map.addSource('route', { type: 'geojson', data: routeGeoJSON() });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b0f14', 'line-width': 6 } });
   map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffcf4a', 'line-width': 3 } });
@@ -187,7 +200,14 @@ map.once('style.load', async () => {
   renderPins();
   updateRoute();
   loadUacRoutes();
+  loadTours();
   loadAltaSnow();
+  fetch('data/nhd_streams.geojson').then(r => r.json()).then(g => {
+    state.streams = g.features.flatMap(f => (f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates])
+      .map(line => ({ name: f.properties.name, line, bbox: bboxOf({ coordinates: line }) })));
+    if (state.route.length > 1) updateRoute();
+  }).catch(() => {});
+  if (location.hash === '#avalanche') globalThis.openAvalanche?.();
 });
 
 /* hover / click on avalanche paths and zones */
@@ -209,6 +229,8 @@ map.on('mouseleave', 'avy-fill', () => {
 map.on('click', e => {
   if (state.drawing) { addRoutePoint([e.lngLat.lng, e.lngLat.lat]); return; }
   if (state.pinning) { addPin(e.lngLat); return; }
+  const tourHit = map.getLayer('tours-hit') && map.queryRenderedFeatures([[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]], { layers: ['tours-hit'] })[0];
+  if (tourHit) { selectTour(tourHit.properties.id); return; }
   const feats = map.queryRenderedFeatures(e.point, { layers: ['avy-fill', 'zones-line'].filter(l => map.getLayer(l) && map.getLayoutProperty(l, 'visibility') !== 'none') });
   const avy = feats.find(f => f.layer.id === 'avy-fill');
   if (avy) {
@@ -267,10 +289,21 @@ map.on('moveend', () => {
 function bindUI() {
   const $ = id => document.getElementById(id);
 
-  $('panel-toggle').onclick = () => {
-    const p = $('panel'); p.classList.toggle('closed');
-    $('panel-toggle').setAttribute('aria-expanded', !p.classList.contains('closed'));
-  };
+  bindSheet();
+  document.querySelectorAll('.tabs [role=tab]').forEach(b => b.onclick = () => openTab(b.dataset.tab));
+  openTab(store.get('tab', 'tours'), false);
+
+  $('pace').value = String(store.get('pace', 1000));
+  $('pace').onchange = () => { store.set('pace', +$('pace').value); updateRoute(); renderTours(); };
+  $('start-time').value = store.get('startTime', '07:00');
+  $('start-time').onchange = () => { store.set('startTime', $('start-time').value); updateRoute(); };
+
+  $('light').value = store.get('light', 'map');
+  $('light-time').value = store.get('lightTime', localDateTimeValue(new Date()));
+  $('light').onchange = () => { store.set('light', $('light').value); applyLight(); };
+  $('light-time').onchange = () => { store.set('lightTime', $('light-time').value); applyLight(); };
+  applyLight();
+  setInterval(() => { if ($('light').value === 'now') applyLight(); }, 5 * 60e3);
 
   $('basemap').value = store.get('basemap', 'topo');
   $('basemap').onchange = () => { store.set('basemap', $('basemap').value); map.getSource('base').setTiles([BASEMAPS[$('basemap').value]]); };
@@ -284,7 +317,7 @@ function bindUI() {
     map.setTerrain($('terrain3d').checked ? { source: 'dem', exaggeration: +$('exag').value } : null);
     if (!$('terrain3d').checked) map.easeTo({ pitch: 0 });
   };
-  ['hillshade', 'avypaths', 'zones'].forEach(id => {
+  ['hillshade', 'avypaths', 'zones', 'ates', 'runout'].forEach(id => {
     $(id).checked = store.get('layer.' + id, $(id).checked);
     $(id).onchange = () => { store.set('layer.' + id, $(id).checked); applyLayerToggles(); };
   });
@@ -314,7 +347,10 @@ function bindUI() {
   $('draw-btn').onclick = () => setDrawing(!state.drawing);
   $('pin-btn').onclick = () => setPinning(!state.pinning);
   $('undo-btn').onclick = () => { state.route.pop(); updateRoute(); };
-  $('clear-btn').onclick = () => { if (state.route.length && !confirm('Clear the current route?')) return; state.route = []; updateRoute(); };
+  $('clear-btn').onclick = () => {
+    if (state.route.length && !confirm('Clear the current route?')) return;
+    state.route = []; state.routeName = null; markTour(null); updateRoute();
+  };
   $('gpx-out').onclick = exportGPX;
   $('gpx-in').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(importGPX); e.target.value = ''; };
 
@@ -325,7 +361,74 @@ function bindUI() {
   });
 
   document.querySelectorAll('#rating-filter input').forEach(i => i.onchange = renderUacList);
-  if (window.matchMedia('(max-width: 640px)').matches) $('panel').classList.add('closed');
+}
+
+/* ---------- panel: tabs, and the bottom sheet on phones ---------- */
+function openTab(name, expand = true) {
+  if (!document.getElementById('tab-' + name)) name = 'tours';
+  document.querySelectorAll('.tabs [role=tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('.tab').forEach(t => { t.hidden = t.id !== 'tab-' + name; });
+  store.set('tab', name);
+  const sheet = document.getElementById('panel');
+  if (expand && sheet.dataset.state === 'peek') setSheet('half');
+}
+function setSheet(st) {
+  document.getElementById('panel').dataset.state = st;
+  store.set('sheet', st);
+}
+function bindSheet() {
+  const sheet = document.getElementById('panel'), handle = document.getElementById('sheet-handle');
+  const order = ['peek', 'half', 'full'];
+  sheet.dataset.state = store.get('sheet', 'peek');
+  let startY = null, startT = 0, moved = false;
+  const offsetOf = () => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(sheet).transform);
+    return m.m42;
+  };
+  handle.addEventListener('pointerdown', e => {
+    startY = e.clientY; startT = offsetOf(); moved = false;
+    handle.setPointerCapture(e.pointerId); sheet.classList.add('dragging');
+  });
+  handle.addEventListener('pointermove', e => {
+    if (startY == null) return;
+    const dy = e.clientY - startY;
+    if (Math.abs(dy) > 4) moved = true;
+    sheet.style.transform = `translateY(${Math.max(0, startT + dy)}px)`;
+  });
+  const end = e => {
+    if (startY == null) return;
+    sheet.classList.remove('dragging'); sheet.style.transform = '';
+    const dy = e.clientY - startY; startY = null;
+    const i = order.indexOf(sheet.dataset.state);
+    if (!moved) setSheet(order[(i + 1) % 3]);
+    else if (dy < -40) setSheet(order[Math.min(2, i + 1)]);
+    else if (dy > 40) setSheet(order[Math.max(0, i - 1)]);
+  };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+}
+
+/* ---------- hillshade light: map convention or the real sun ---------- */
+const localDateTimeValue = d => new Date(d.getTime() - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
+function applyLight() {
+  const mode = document.getElementById('light').value, note = document.getElementById('light-note');
+  document.getElementById('light-time').hidden = mode !== 'time';
+  if (mode === 'map') {
+    map.setPaintProperty('hillshade', 'hillshade-illumination-anchor', 'viewport');
+    map.setPaintProperty('hillshade', 'hillshade-illumination-direction', 335);
+    note.innerHTML = 'Maps light terrain from the northwest so ridges read correctly. In the northern hemisphere the real sun comes from the south, so pick <b>Real sun</b> to see which slopes are actually being warmed.';
+    return;
+  }
+  const when = mode === 'now' ? new Date() : new Date(document.getElementById('light-time').value);
+  if (isNaN(when)) return;
+  const c = map.getCenter(), sun = sunPosition(when, c.lat, c.lng);
+  map.setPaintProperty('hillshade', 'hillshade-illumination-anchor', 'map');
+  map.setPaintProperty('hillshade', 'hillshade-illumination-direction', Math.round(sun.azimuth));
+  try { map.setPaintProperty('hillshade', 'hillshade-illumination-altitude', Math.max(1, Math.round(sun.altitude))); } catch { /* older style spec */ }
+  const t = when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  note.innerHTML = sun.altitude <= 0
+    ? `${t}: the sun is below the horizon. Shading shows where it set.`
+    : `${t}: sun ${Math.round(sun.altitude)}° up, from the ${ASPECTS[sectorOf(sun.azimuth)]} (${Math.round(sun.azimuth)}°). Bright slopes are the ones it is warming. Position from the US Naval Observatory's approximate formula.`;
 }
 
 function applyLayerToggles() {
@@ -333,6 +436,10 @@ function applyLayerToggles() {
   vis(['hillshade'], document.getElementById('hillshade').checked);
   vis(['avy-fill', 'avy-line', 'avy-label'], document.getElementById('avypaths').checked);
   vis(['zones-line', 'zones-label'], document.getElementById('zones').checked);
+  vis(['ates'], document.getElementById('ates').checked);
+  vis(['runout'], document.getElementById('runout').checked);
+  document.getElementById('ates-key').hidden = !document.getElementById('ates').checked;
+  document.getElementById('runout-key').hidden = !document.getElementById('runout').checked;
 }
 
 function refreshAnalysis() {
@@ -350,7 +457,16 @@ function renderLegend() {
   else if (state.mode === 'match') {
     const n = popcount(state.mask);
     el.innerHTML = sw(MATCH_COLOR) + `<span>≥ ${state.minSlope}° and in a rose band you picked (${n}/24 picked)</span>` + (n ? '' : '<span></span><span class="muted">Nothing picked: tap the rose.</span>');
+  } else if (state.mode === 'safe') {
+    el.innerHTML = sw(SAFE_COLOR) + `<span>Under ${SAFE_MAX_SLOPE}° and outside every runout reach (nothing steep above). Cody's terrain for high-danger days.</span>`
+      + '<span></span><span class="muted">Only drawn inside the terrain model (Millcreek to Alta). No shading ≠ safe: it means not checked or not low-angle.</span>';
   } else el.innerHTML = '';
+}
+function setMode(mode) {
+  state.mode = mode; store.set('mode', mode);
+  const r = document.querySelector(`input[name=mode][value=${mode}]`);
+  if (r) r.checked = true;
+  refreshAnalysis();
 }
 const popcount = m => { let n = 0; while (m) { n += m & 1; m >>>= 1; } return n; };
 
@@ -399,7 +515,11 @@ function setDrawing(on) {
   on ? map.doubleClickZoom.disable() : map.doubleClickZoom.enable();
 }
 
-function addRoutePoint(ll) { state.route.push([+ll[0].toFixed(6), +ll[1].toFixed(6)]); updateRoute(); }
+function addRoutePoint(ll) {
+  if (state.routeName && !state.routeName.endsWith('(edited)')) state.routeName += ' (edited)';
+  state.route.push([+ll[0].toFixed(6), +ll[1].toFixed(6)]);
+  updateRoute();
+}
 
 function routeGeoJSON() {
   // vertex dots only for hand-drawn routes; long imported tracks just show the line
@@ -408,29 +528,82 @@ function routeGeoJSON() {
   return { type: 'FeatureCollection', features: feats };
 }
 
+// Avalanche terrain at a point from the zoom-14 terrain tile: { runout, ates }, or null outside the model
+async function terrainAt(lng, lat) {
+  const t = lngLatToTile(lng, lat, RUNOUT_MAX_Z);
+  const tile = await terrainTileRaw(RUNOUT_MAX_Z, t.x, t.y);
+  if (!tile) return null;
+  const v = tile[t.r * 256 + t.q];
+  return { runout: v >> 3, ates: v & 7 };
+}
+// Name of an NHD stream within `m` metres of the point ('' for an unnamed one), or null
+function nearStream(p, m = 25) {
+  if (!state.streams) return null;
+  const kx = Math.cos(p[1] * Math.PI / 180) * 111320, ky = 110540, pad = m / ky * 1.5;
+  for (const s of state.streams) {
+    const b = s.bbox;
+    if (p[0] < b[0] - pad * 1.4 || p[0] > b[2] + pad * 1.4 || p[1] < b[1] - pad || p[1] > b[3] + pad) continue;
+    for (let i = 1; i < s.line.length; i++) {
+      const ax = (s.line[i - 1][0] - p[0]) * kx, ay = (s.line[i - 1][1] - p[1]) * ky;
+      const bx = (s.line[i][0] - p[0]) * kx, by = (s.line[i][1] - p[1]) * ky;
+      const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+      if (Math.hypot(ax + t * dx, ay + t * dy) <= m) return s.name || '';
+    }
+  }
+  return null;
+}
+const mi = m => fmt(m / 1609.344, 2);
+const hm = h => { const t = Math.round(h * 60); return t < 60 ? `${t} min` : `${Math.floor(t / 60)} h${t % 60 ? ' ' + (t % 60) + ' min' : ''}`; };
+
 let routeSeq = 0;
 async function updateRoute() {
   store.set('route', state.route);
+  store.set('routeName', state.routeName);
   if (map.getSource('route')) map.getSource('route').setData(routeGeoJSON());
   const seq = ++routeSeq;
-  const statsEl = document.getElementById('route-stats'), profEl = document.getElementById('profile');
-  if (state.route.length < 2) { statsEl.innerHTML = ''; profEl.innerHTML = ''; return; }
+  const statsEl = document.getElementById('route-stats'), profEl = document.getElementById('profile'), checksEl = document.getElementById('route-checks');
+  const nameEl = document.getElementById('route-name');
+  nameEl.hidden = !state.routeName; nameEl.textContent = state.routeName || '';
+  if (state.route.length < 2) { statsEl.innerHTML = ''; profEl.innerHTML = ''; checksEl.innerHTML = ''; return; }
   statsEl.innerHTML = '<div class="stat wide"><span>Working out stats…</span></div>';
 
   const pts = densify(state.route, 15);
-  const samples = await Promise.all(pts.map(p => sampleAt(p[0], p[1])));
+  const [samples, terr] = await Promise.all([Promise.all(pts.map(p => sampleAt(p[0], p[1]))), Promise.all(pts.map(p => terrainAt(p[0], p[1])))]);
   if (seq !== routeSeq) return;
 
-  let dist = 0, gain = 0, loss = 0, maxSlope = 0, steepDist = 0, minE = Infinity, maxE = -Infinity;
+  const bins = [0, 0, 0, 0, 0];               // <25, 25–30, 30–35, 35–40, 40+
+  const atesD = [0, 0, 0, 0, 0], aspD = Array(8).fill(0), bandD = [0, 0, 0];
+  let dist = 0, gain = 0, loss = 0, maxSlope = 0, maxSlopeAt = 0, steepDist = 0, minE = Infinity, maxE = -Infinity;
+  let near30 = 0, covered = 0, overhead = 0, trap = 0, southSteep = 0, roseHit = 0;
+  const trapNames = new Set();
   const prof = [];
   for (let i = 0; i < pts.length; i++) {
-    const s = samples[i];
+    const s = samples[i], tr = terr[i];
     const d = i ? haversine(pts[i - 1], pts[i]) : 0;
     dist += d;
     if (!s) continue;
     if (i && samples[i - 1]) { const dz = s.elev - samples[i - 1].elev; dz > 0 ? gain += dz : loss -= dz; }
-    if (s.slope > maxSlope) maxSlope = s.slope;
+    if (s.slope > maxSlope) { maxSlope = s.slope; maxSlopeAt = dist; }
     if (s.slope >= 30) steepDist += d;
+    bins[s.slope < 25 ? 0 : s.slope < 30 ? 1 : s.slope < 35 ? 2 : s.slope < 40 ? 3 : 4] += d;
+    if (s.slope >= 27 && s.slope < 30) near30 += d;
+    bandD[bandOf(s.elev)] += d;
+    if (s.slope >= 28 && !isNaN(s.aspect)) {
+      aspD[sectorOf(s.aspect)] += d;
+      if ([3, 4, 5].includes(sectorOf(s.aspect))) southSteep += d;
+    }
+    if (state.mask && s.slope >= state.minSlope && !isNaN(s.aspect) && (state.mask >> (bandOf(s.elev) * 8 + sectorOf(s.aspect))) & 1) roseHit += d;
+    if (tr) {
+      covered += d; atesD[tr.ates] += d;
+      // under slopes that can slide: inside the typical reach, not a start zone itself, and not
+      // protected by forest (AutoATES still rates it challenging or worse)
+      if (tr.runout === 2 && tr.ates >= 2) {
+        overhead += d;
+        const st = nearStream(pts[i]);
+        if (st != null) { trap += d; if (st) trapNames.add(st); }
+      }
+    }
     minE = Math.min(minE, s.elev); maxE = Math.max(maxE, s.elev);
     prof.push([dist, s.elev, s.slope]);
   }
@@ -449,15 +622,68 @@ async function updateRoute() {
   const nCrossed = [...crossed.values()].reduce((a, b) => a + b, 0);
   const names = [...crossed.entries()].map(([n, c]) => c > 1 ? `${n} ×${c}` : n);
 
+  const pace = +document.getElementById('pace').value || 1000;
+  const hours = gain * FT / pace;
+  const [sh, sm] = (document.getElementById('start-time').value || '07:00').split(':').map(Number);
+  const top = new Date(2000, 0, 1, sh, sm + Math.round(hours * 60));
+  const topStr = top.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
   statsEl.innerHTML = `
-    <div class="stat"><b>${fmt(dist / 1609.344, 2)} mi</b><span>Distance</span></div>
+    <div class="stat"><b>${mi(dist)} mi</b><span>Distance</span></div>
     <div class="stat"><b>${fmt(gain * FT)} ft</b><span>Gain (↓ ${fmt(loss * FT)} ft)</span></div>
     <div class="stat"><b>${fmt(maxE * FT)} ft</b><span>High point (low ${fmt(minE * FT)} ft)</span></div>
-    <div class="stat"><b>${fmt(maxSlope)}°</b><span>Steepest under the line</span></div>
-    <div class="stat wide"><b>${fmt(steepDist / 1609.344, 2)} mi</b><span>on slopes of 30° or more under the line (${fmt(100 * steepDist / dist)}%)</span></div>
-    <div class="stat wide"><b>${nCrossed} avalanche path${nCrossed === 1 ? '' : 's'} crossed</b><span>${esc(names.join(', ') || 'None in the 1989 SGID survey')}</span></div>
-    <div class="stat wide"><span>Calculated from USGS 3DEP elevation (AWS Terrain Tiles, z${SAMPLE_Z}), sampled every 15 m. Slope is the ground under the line only, not slopes above it.</span></div>`;
+    <div class="stat"><b>${hm(hours)}</b><span>Up, at ${fmt(pace)} ft/hr</span></div>`;
   renderProfile(prof);
+
+  // ---- checks, the way Cody Townsend works through a plan ----
+  const checks = [];
+  const add = (level, title, body, src) => checks.push(`<div class="check ${level}"><b>${title}</b>${body}${src ? `<small>${src}</small>` : ''}</div>`);
+  add('info', `Your day: about ${hm(hours)} up`, `${fmt(gain * FT)} ft at ${fmt(pace)} ft/hr. Leave at ${document.getElementById('start-time').value || '07:00'}, top around <b style="display:inline">${topStr}</b>. Add time for route-finding, transitions and the exit.`,
+    "Cody Townsend's rule of thumb: vertical ÷ your hourly pace.");
+
+  if (covered > dist * 0.5) {
+    const worst = atesD.reduce((w, v, k) => v > 15 ? k : w, 0);
+    const bar = atesD.map((v, k) => v > 0 && ATES_COLORS[k] ? `<i style="width:${100 * v / covered}%;background:rgb(${ATES_COLORS[k].join(',')})" title="${ATES_NAMES[k]} ${mi(v)} mi"></i>` : '').join('');
+    add(worst >= 3 ? 'bad' : worst === 2 ? 'warn' : 'ok', `Terrain class: up to ${ATES_NAMES[worst]}`,
+      `<div class="ates-bar">${bar}</div>${atesD.map((v, k) => v > 15 ? `${ATES_NAMES[k]} ${mi(v)} mi` : '').filter(Boolean).join(' · ')}`,
+      'Avalanche Terrain Exposure Scale, computed with the AutoATES v2.0 method (not field-checked here).');
+    if (overhead > 15) {
+      add(overhead > 400 ? 'bad' : 'warn', `Overhead hazard: ${mi(overhead)} mi, about ${hm(hours * overhead / dist)}`,
+        'Ground where a slide from the steep slopes above could reach you, outside dense trees. Keep the time here short; Cody turned around on a warm day rather than sit under hazard for hours.',
+        'Typical (24° alpha) runout reach, AutoATES method.');
+    } else add('ok', 'No overhead hazard flagged under the line', 'Nothing in the typical runout reach outside dense trees. Check the steep ground you climb itself, and the bigger-event reach on the map.', '');
+  } else {
+    add('info', 'Outside the terrain model', 'Terrain class and overhead hazard are only computed from Millcreek to Alta.', '');
+  }
+
+  add(nCrossed ? 'warn' : 'ok', `${nCrossed} mapped avalanche path${nCrossed === 1 ? '' : 's'} crossed`, esc(names.join(', ') || 'None in the 1989 survey'), 'Utah SGID Avalanche Paths (1989).');
+
+  if (trap > 15) add('bad', `Terrain trap: ${mi(trap)} mi in a creek bed under overhead hazard`,
+    `${trapNames.size ? 'Along ' + esc([...trapNames].join(', ')) + '. ' : ''}Hard to escape and a deep burial if something comes down. Cody's Pinchot Creek lesson: stay out of the creek bed when there's hazard above.`,
+    'Streams from the USGS National Hydrography Dataset (within 25 m).');
+
+  const binColors = [[110, 120, 130], ...SLOPE_CLASSES.slice(1, 4).map(c => c[2]), [90, 0, 160]];
+  add(maxSlope >= 30 ? 'warn' : 'ok', `Steepest ${fmt(maxSlope)}° (at ${mi(maxSlopeAt)} mi)`,
+    `<div class="slope-bins">${bins.map((v, k) => v > 0 ? `<i style="width:${100 * v / dist}%;background:rgb(${binColors[k].join(',')})"></i>` : '').join('')}</div>`
+    + `Under 25°: ${mi(bins[0])} mi · 25–30°: ${mi(bins[1])} · 30–35°: ${mi(bins[2])} · 35–40°: ${mi(bins[3])} · 40°+: ${mi(bins[4])}`
+    + (near30 > 30 ? `<br><b style="display:inline">${mi(near30)} mi is 27–30°</b>, right at the line. The map can't see a 31° roll inside a "30°" slope, so check with an inclinometer.` : ''),
+    `Ground under the line only, from ~10 m USGS 3DEP elevation (z${SAMPLE_Z}), every 15 m.`);
+
+  const today = await (globalThis.altaToday?.() ?? null);
+  if (seq !== routeSeq) return;
+  const steepAsp = aspD.map((v, k) => v > 20 ? `${ASPECTS[k]} ${mi(v)}` : '').filter(Boolean).join(' · ');
+  add(southSteep > 30 && today?.highF > 32 ? 'warn' : 'info', 'Sun and warming',
+    (southSteep > 30 ? `${mi(southSteep)} mi of 28°+ slopes face SE–SW; these warm first when the sun is out.` : 'Little steep south-facing ground on the line.')
+    + (steepAsp ? ` Steep ground by aspect: ${steepAsp} mi.` : '')
+    + (today ? `<br>Today at Alta (9,895′): high ${Math.round(today.highF)}°F${today.fz ? `, freezing level ${fmt(Math.round(today.fz / 100) * 100)}′` : ''}${today.snow >= 0.5 ? `, ${Math.round(today.snow)}" new` : ''}.` : ''),
+    'Use Map → Hillshade → Real sun to see which slopes the sun is on. Forecast: Alta blend (Resort page).');
+
+  if (state.mask) add(roseHit > 15 ? 'bad' : 'ok', roseHit > 15 ? `${mi(roseHit)} mi in terrain your rose marks dangerous` : 'Clear of the bands you marked on the rose',
+    `Slopes of ${state.minSlope}°+ in the aspects and elevations tapped on the avalanche rose (Map tab).`, '');
+  else add('info', 'Danger rose not filled in', 'Tap today\'s problem aspects and elevations on the rose (Map tab) and the route is checked against them.', '');
+  add('info', 'Elevation bands', `Below 8,000′: ${mi(bandD[0])} mi · 8,000–9,500′: ${mi(bandD[1])} · above 9,500′: ${mi(bandD[2])}`, 'UAC Salt Lake elevation bands.');
+
+  checksEl.innerHTML = checks.join('');
 }
 
 function renderProfile(prof) {
@@ -521,7 +747,7 @@ async function exportGPX() {
   const xmlEsc = s => String(s).replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
   const elevs = await Promise.all(state.route.map(c => sampleAt(c[0], c[1])));
   const wpts = state.pins.map(p => `  <wpt lat="${p.lat}" lon="${p.lng}">${p.elev != null ? `<ele>${p.elev}</ele>` : ''}<name>${xmlEsc(p.name)}</name></wpt>`).join('\n');
-  const trk = state.route.length > 1 ? `  <trk><name>Wasatch BC Atlas route</name><trkseg>\n${state.route.map((c, i) => `    <trkpt lat="${c[1]}" lon="${c[0]}">${elevs[i] ? `<ele>${elevs[i].elev.toFixed(1)}</ele>` : ''}</trkpt>`).join('\n')}\n  </trkseg></trk>` : '';
+  const trk = state.route.length > 1 ? `  <trk><name>${xmlEsc(state.routeName || 'Wasatch BC Atlas route')}</name><trkseg>\n${state.route.map((c, i) => `    <trkpt lat="${c[1]}" lon="${c[0]}">${elevs[i] ? `<ele>${elevs[i].elev.toFixed(1)}</ele>` : ''}</trkpt>`).join('\n')}\n  </trkseg></trk>` : '';
   const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Wasatch BC Atlas" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n${trk}\n</gpx>\n`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
@@ -539,6 +765,8 @@ function importGPX(text) {
   if (line.length > 1) {
     if (state.route.length > 1 && !confirm('Replace the current route with the imported track?')) return;
     state.route = line.map(c => [+c[0].toFixed(6), +c[1].toFixed(6)]);
+    state.routeName = doc.querySelector('trk > name, rte > name')?.textContent || 'Imported GPX';
+    markTour(null);
     updateRoute();
     const b = line.reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 80, pitch: map.getPitch() });
@@ -558,6 +786,60 @@ async function loadUacRoutes() {
   uac = await fetch('data/uac_routes.json').then(r => r.json());
   document.getElementById('uac-count').textContent = `(${uac.routes.length})`;
   renderUacList();
+  renderTours();
+}
+
+/* ---------- Little Cottonwood tours (data/lcc_tours.geojson, built by tools/terrain_wasatch.py) ---------- */
+async function loadTours() {
+  const list = document.getElementById('tour-list');
+  try {
+    state.tours = await fetch('data/lcc_tours.geojson').then(r => r.json());
+  } catch (e) {
+    list.innerHTML = `<li class="muted">Tours didn't load (${esc(e.message)}).</li>`;
+    return;
+  }
+  map.getSource('tours')?.setData(state.tours);
+  renderTours();
+}
+function renderTours() {
+  if (!state.tours) return;
+  const pace = +document.getElementById('pace').value || 1000;
+  const list = document.getElementById('tour-list');
+  document.getElementById('tour-count').textContent = `(${state.tours.features.length})`;
+  const rated = name => uac?.routes.find(r => r.name === name);
+  list.innerHTML = state.tours.features.map(f => {
+    const p = f.properties, a = p.approx, u = p.uac && rated(p.uac);
+    const tot = a.ates_mi.reduce((x, y) => x + y, 0) || 1;
+    const bar = a.ates_mi.map((v, k) => v > 0 && ATES_COLORS[k] ? `<i style="width:${100 * v / tot}%;background:rgb(${ATES_COLORS[k].join(',')})"></i>` : '').join('');
+    const worst = a.ates_mi.reduce((w, v, k) => v >= 0.02 ? k : w, 0);
+    return `<li class="tour${state.routeName === p.name ? ' selected' : ''}" tabindex="0" role="button" data-id="${p.id}">
+      <div class="tour-top"><b>${esc(p.name)}</b>${u ? `<span class="uac-chip ${u.rating}" title="UAC route rating: ${esc(u.name)}">UAC ${u.rating}</span>` : ''}</div>
+      <div class="tour-sub">${esc([p.from, ...p.via].join(' → '))}${p.onx ? ` · onX: “${esc(p.onx)}”` : ''}</div>
+      <div class="tour-stats"><span><b>≈${fmt(a.distance_mi, 1)}</b> mi</span><span><b>≈${fmt(a.gain_ft)}</b> ft</span><span><b>${fmt(a.high_ft)}</b> ft top</span><span><b>${hm(a.gain_ft / pace)}</b> up</span><span>max <b>${a.max_slope}°</b></span></div>
+      <div class="ates-bar" title="Terrain class along the line">${bar}</div>
+      <div class="ates-key"><span>Up to <b>${ATES_NAMES[worst]}</b></span>${u ? `<span>UAC: ${u.distance_mi ?? '–'} mi, ${u.gain_ft ? fmt(u.gain_ft) + ' ft' : '–'} (published)</span>` : ''}</div>
+    </li>`;
+  }).join('');
+  list.querySelectorAll('.tour').forEach(li => {
+    li.onclick = () => selectTour(li.dataset.id);
+    li.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTour(li.dataset.id); } };
+  });
+}
+function markTour(name) {
+  document.querySelectorAll('.tour').forEach(li => li.classList.toggle('selected', !!name && li.querySelector('b')?.textContent === name));
+}
+function selectTour(id) {
+  const f = state.tours?.features.find(x => x.properties.id === id);
+  if (!f) return;
+  setDrawing(false);
+  state.route = f.geometry.coordinates.map(c => [c[0], c[1]]);
+  state.routeName = f.properties.name;
+  markTour(state.routeName);
+  updateRoute();
+  const b = state.route.reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
+  const wide = matchMedia('(min-width: 900px)').matches;
+  map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: wide ? { top: 80, bottom: 60, left: 420, right: 60 } : { top: 70, bottom: 260, left: 30, right: 50 }, pitch: map.getPitch(), duration: 900 });
+  openTab('plan');
 }
 function renderUacList() {
   if (!uac) return;
@@ -593,7 +875,7 @@ function renderUacList() {
 
 /* ---------- Alta snow forecast (data and maths in forecast-data.js) ---------- */
 async function loadAltaSnow() {
-  const el = document.getElementById('alta-mini');
+  const el = document.getElementById('alta-mini');   // the map panel no longer has the mini chart; marker only
   const marker = document.createElement('a');
   marker.className = 'alta-marker'; marker.href = 'forecast.html'; marker.title = 'Alta forecast point, 9,895 ft';
   marker.innerHTML = '<img src="badge.svg" alt=""><span>Alta</span>';
@@ -605,6 +887,7 @@ async function loadAltaSnow() {
     const next5 = tot(0, 5);
     marker.querySelector('span').textContent = `Alta ${next5}"`;
     marker.title = `Alta: ${next5}" in the next 5 days. Open the full forecast.`;
+    if (!el) return;
     el.innerHTML = `<div class="alta-tots">${[[0, 5, '1–5 days'], [5, 10, '6–10'], [10, 15, '11–15']].map(([a, z, l]) => `<div><b>${tot(a, z)}"</b><span>${l}</span></div>`).join('')}</div>
       <div class="alta-bars">${b.days.map(d => {
         const v = d.snow || 0;
@@ -613,6 +896,6 @@ async function loadAltaSnow() {
       }).join('')}</div>`;
     document.getElementById('alta-updated').textContent = `· next 15 days`;
   } catch (e) {
-    el.innerHTML = `<p class="hint">Forecast didn't load (${esc(e.message)}).</p>`;
+    if (el) el.innerHTML = `<p class="hint">Forecast didn't load (${esc(e.message)}).</p>`;
   }
 }

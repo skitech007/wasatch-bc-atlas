@@ -1,5 +1,5 @@
 // Alta forecast data: fetches public model, ensemble, NWS and SNOTEL data and runs the snow maths
-// in snow.js. Used by forecast.html (full page), index.html (map panel) and the nightly scorecard
+// in snow.js. Used by forecast.html (full page), index.html (home), backcountry.html (map panel) and the nightly scorecard
 // worker (worker/index.js), which imports this file as a module and reads the globals it sets.
 
 const POINT = { lat: 40.5884, lon: -111.6386, elevM: 3016, ft: 9895 };

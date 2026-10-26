@@ -8,3 +8,4 @@ wrangler.jsonc
 worker
 tools
 README.md
+.venv

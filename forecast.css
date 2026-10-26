@@ -159,3 +159,19 @@ code { background: var(--btn); padding: 1px 5px; border-radius: 4px; font-size: 
   .mtable.score th, .mtable.score td { padding: 5px 5px; font-size: 12px; }
   .mtable.score th small { display: block; margin-left: 0; }
 }
+
+/* Phones: keep all 15 days in one row like the home screen, and give the header room */
+@media (max-width: 720px) {
+  .summary { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sgroup header { flex-direction: column; gap: 0; align-items: flex-start; }
+  .sgroup header b { font-size: 18px; }
+  .bars { height: 130px; gap: 2px; }
+  .bar .bv { font-size: 10px; }
+  .bar .bd { font-size: 10px; }
+}
+@media (max-width: 420px) {
+  .fc-head .mountain-logo { display: none; }
+  .fc-head #refresh { padding: 6px 8px; font-size: 12px; }
+  .fc main { padding: 10px 10px 32px; }
+  .card { padding: 12px 10px; }
+}

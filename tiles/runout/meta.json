@@ -1,0 +1,33 @@
+{
+ "bbox": [
+  -111.86,
+  40.48,
+  -111.5,
+  40.7
+ ],
+ "zooms": [
+  11,
+  12,
+  13,
+  14
+ ],
+ "source_zoom": 13,
+ "encoding": "byte = runout class * 8 + ATES class",
+ "runout_classes": {
+  "0": "none",
+  "1": "extended reach (alpha 18\u00b0)",
+  "2": "typical reach (alpha 24\u00b0)",
+  "3": "start zone (28\u201360\u00b0, canopy \u2264 50%)"
+ },
+ "ates_classes": {
+  "0": "non-avalanche",
+  "1": "simple",
+  "2": "challenging",
+  "3": "complex",
+  "4": "extreme"
+ },
+ "method": "AutoATES v2.0 default thresholds (SAT01-34, AAT1-3, TREE1-3, CC1-2) and forest table; simplified start zones (slope + canopy only), energy-line runout along steepest descent \u00b1 one direction, feed counts by steepest descent. Not validated for the Wasatch.",
+ "elevation": "AWS Terrain Tiles (Terrarium), USGS 3DEP, zoom 13",
+ "canopy": "USFS/NLCD Tree Canopy Cover 2025 (raster id 80), 30 m",
+ "built": "2026-10-26"
+}

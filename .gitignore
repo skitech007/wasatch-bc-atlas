@@ -2,3 +2,5 @@
 .vercel
 .wrangler
 .dev.vars
+tools/.cache
+.venv

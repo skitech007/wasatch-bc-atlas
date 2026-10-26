@@ -7,6 +7,7 @@
 //   obs:<date>   Atwater SNOTEL: water, depth gain, and high/low from the hourly readings (the same
 //                on-the-hour sampling as the forecast; SNOTEL's own daily TMAX runs ~1°F higher)
 //   wind:<date>  Hidden Peak hourly wind and gust (mph), kept because NWS only holds about a week
+//   (wind entries are [mean speed, max gust, mean direction°]; direction added 2026-10-26)
 //   corrections  { temperature: rolling 14-day bias at Atwater, wind: factors learned from snap + wind },
 //                read by the forecast page and by tomorrow's snapshot
 
@@ -30,6 +31,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/scorecard') return json(await scorecard(env), 600);
+    if (url.pathname === '/api/avalanche') return avalancheCached(request, env, url.searchParams.get('asOf'));
     if (url.pathname === '/api/corrections') return json((await env.SCORE.get('corrections', 'json')) || {}, 1800);
     if (url.pathname === '/api/run' && request.method === 'POST') {
       if (!env.RUN_KEY || request.headers.get('x-run-key') !== env.RUN_KEY) return new Response('Forbidden', { status: 403 });
@@ -137,15 +139,18 @@ async function windObs(env) {
   const d = await r.json();
   const hours = {};
   for (const f of d.features || []) {
-    const p = f.properties, ws = p.windSpeed?.value, wg = p.windGust?.value;
+    const p = f.properties, ws = p.windSpeed?.value, wg = p.windGust?.value, wd = p.windDirection?.value;
     if (ws == null) continue;
     const k = localKey(new Date(p.timestamp));
-    (hours[k] ||= { ws: [], wg: [] }).ws.push(ws * KMH_TO_MPH);
-    if (wg != null) hours[k].wg.push(wg * KMH_TO_MPH);
+    const h = (hours[k] ||= { ws: [], wg: [], x: 0, y: 0 });
+    h.ws.push(ws * KMH_TO_MPH);
+    if (wg != null) h.wg.push(wg * KMH_TO_MPH);
+    if (wd != null) { h.x += ws * Math.sin(wd * Math.PI / 180); h.y += ws * Math.cos(wd * Math.PI / 180); }
   }
   const byDay = {};
   for (const [k, v] of Object.entries(hours)) {
-    (byDay[dateOf(k)] ||= {})[k] = [round(mean(v.ws), 1), v.wg.length ? round(Math.max(...v.wg), 1) : null];
+    const wd = v.x || v.y ? Math.round((Math.atan2(v.x, v.y) * 180 / Math.PI + 360) % 360) : null;
+    (byDay[dateOf(k)] ||= {})[k] = [round(mean(v.ws), 1), v.wg.length ? round(Math.max(...v.wg), 1) : null, wd];
   }
   for (const [day, hrs] of Object.entries(byDay)) {
     const old = (await env.SCORE.get(`wind:${day}`, 'json')) || {};
@@ -277,3 +282,91 @@ async function scorecard(env) {
   };
 }
 const pick = d => d ? { water: d.water, snow: d.snow, hi: d.hi, lo: d.lo, reconstructed: d.reconstructed } : null;
+
+// ---------- avalanche ----------
+// UAC Salt Lake zone danger from avalanche.org's public API (today's rating, travel advice, and the
+// daily overall rating history), plus Hidden Peak wind history from KV for the wind-loading view.
+// UAC's own feed (danger rose, problems, bottom line) needs an API token; avalanche.org only
+// carries UAC's overall rating per day.
+const AVY_ZONE = 'Salt Lake';
+const WIND_LOADING_MPH = 15;   // Avalanche Canada: moderate winds, 25–40 km/h (~15–25 mph), build wind slabs best
+
+async function avalancheCached(request, env, asOf) {
+  const cache = caches.default;
+  const key = new Request(new URL(`/api/avalanche${asOf ? '?asOf=' + asOf : ''}`, request.url));
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  let body;
+  try { body = await avalanche(env, asOf); } catch (e) { return json({ error: String(e.message || e) }); }
+  const res = json(body, 1800);
+  await cache.put(key, res.clone());
+  return res;
+}
+
+async function avalanche(env, asOf) {
+  const today = dateOf(localKey(new Date()));
+  const end = asOf && /^\d{4}-\d{2}-\d{2}$/.test(asOf) && asOf <= today ? asOf : today;
+  const start = addDays(end, -30);
+  const [layer, list] = await Promise.all([
+    end === today ? getJSON('https://api.avalanche.org/v2/public/products/map-layer/UAC') : null,
+    // date_end is exclusive
+    getJSON(`https://api.avalanche.org/v2/public/products?avalanche_center_id=UAC&date_start=${start}&date_end=${addDays(end, 1)}`),
+  ]);
+  const byDate = {};
+  for (const p of list || []) {
+    if (p.product_type !== 'forecast' || !p.forecast_zone?.some(z => z.name === AVY_ZONE) || !p.start_date) continue;
+    const date = dateOf(localKey(new Date(p.start_date)));
+    if (date < start || date > end) continue;
+    const prev = byDate[date];
+    if (!prev || p.published_time > prev.published) {
+      byDate[date] = { date, rating: p.danger_rating >= 1 && p.danger_rating <= 5 ? p.danger_rating : null, published: p.published_time, id: p.id };
+    }
+  }
+  const history = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) history.push(byDate[d] || { date: d, rating: null });
+
+  let zone = null;
+  const f = layer?.features?.find(x => x.properties?.name === AVY_ZONE);
+  if (f) {
+    const p = f.properties;
+    zone = {
+      name: p.name, danger: p.danger, level: p.danger_level >= 1 ? p.danger_level : null, color: p.color,
+      travelAdvice: p.travel_advice, link: p.link, start: p.start_date, end: p.end_date, offSeason: p.off_season,
+      warning: p.warning?.product || null,
+    };
+  } else {
+    const h = byDate[end];
+    zone = { name: AVY_ZONE, level: h?.rating ?? null, link: 'https://utahavalanchecenter.org/forecast/salt-lake', historical: true };
+  }
+
+  // Hidden Peak: daily max wind, max gust, hours at or above the loading speed and their mean direction
+  const wind = [];
+  const days = history.map(h => h.date);
+  const stored = await Promise.all(days.map(d => env.SCORE.get(`wind:${d}`, 'json')));
+  days.forEach((d, i) => {
+    const hrs = Object.values(stored[i] || {});
+    if (!hrs.length) { wind.push({ date: d, hours: 0 }); return; }
+    let x = 0, y = 0, loading = 0;
+    for (const [ws, , wd] of hrs) {
+      if (ws >= WIND_LOADING_MPH) {
+        loading++;
+        if (wd != null) { x += ws * Math.sin(wd * Math.PI / 180); y += ws * Math.cos(wd * Math.PI / 180); }
+      }
+    }
+    wind.push({
+      date: d, hours: hrs.length, loadingHours: loading,
+      maxWs: round(Math.max(...hrs.map(h => h[0] ?? 0)), 0),
+      maxGust: round(Math.max(...hrs.map(h => h[1] ?? 0)), 0) || null,
+      loadingDir: x || y ? Math.round((Math.atan2(x, y) * 180 / Math.PI + 360) % 360) : null,
+    });
+  });
+
+  return {
+    asOf: end, zone, history, wind,
+    sources: {
+      danger: 'Utah Avalanche Center via avalanche.org public API',
+      wind: 'NWS station HDP (Hidden Peak, 11,000 ft), saved nightly',
+      windLoading: `${WIND_LOADING_MPH} mph+ (Avalanche Canada glossary, wind transport)`,
+    },
+  };
+}
