@@ -30,6 +30,33 @@ function renderTemp(s) {
     <tbody>${rows.join('')}</tbody></table>` : '<p class="muted">No scored days yet.</p>';
 }
 
+// The way OpenSnow scored PEAKS 2.0: significant-error rate and how often each forecast was best
+function renderPeaks(s) {
+  const ls = s.leads.filter(l => l.days && l.water.sig);
+  if (!ls.length) { $('peaks').innerHTML = '<p class="muted">No scored days yet.</p>'; return; }
+  const pct = v => v == null ? '<span class="muted">–</span>' : `${v}%`;
+  const ids = ['blend', ...s.models.map(m => m.id)];
+  const head = `<th>Alta blend</th>${s.models.map(m => `<th>${m.name} <small>raw</small></th>`).join('')}`;
+  const sigRows = ls.map(l => {
+    const v = ids.map(id => id === 'blend' ? l.water.sig.blend : l.water.sig.raw[id]);
+    const lo = Math.min(...v.filter(x => x != null));
+    return `<tr><th>${leadName(l.lead)}</th>${v.map((x, i) => `<td class="${x === lo ? 'best' : ''} ${i === 0 ? 'blendcol' : ''}">${pct(x)}</td>`).join('')}</tr>`;
+  });
+  const bestRows = ls.filter(l => l.water.best?.days).map(l => {
+    const v = ids.map(id => l.water.best.share[id]);
+    const hi = Math.max(...v.filter(x => x != null));
+    return `<tr><th>${leadName(l.lead)}<small>${l.water.best.days} days</small></th>${v.map((x, i) => `<td class="${x === hi ? 'best' : ''} ${i === 0 ? 'blendcol' : ''}">${pct(x)}</td>`).join('')}</tr>`;
+  });
+  const tRows = ls.filter(l => l.temp.sig != null).map(l => `<tr><th>${leadName(l.lead)}</th><td class="blendcol ${l.temp.sig <= l.temp.sigRaw ? 'best' : ''}">${pct(l.temp.sig)}</td><td>${pct(l.temp.sigRaw)}</td></tr>`);
+  $('peaks').innerHTML = `
+    <h3 class="sub-h">Water: share of days with a significant error <span class="muted">(lower is better)</span></h3>
+    <table class="mtable score"><thead><tr><th></th>${head}</tr></thead><tbody>${sigRows.join('')}</tbody></table>
+    <h3 class="sub-h">Water: share of days each was closest <span class="muted">(higher is better; dry days everyone got right are skipped)</span></h3>
+    ${bestRows.length ? `<table class="mtable score"><thead><tr><th></th>${head}</tr></thead><tbody>${bestRows.join('')}</tbody></table>` : '<p class="muted">No wet days scored yet.</p>'}
+    <h3 class="sub-h">Temperature: share of days with the high or low more than 3°F off</h3>
+    <table class="mtable score"><thead><tr><th></th><th>Corrected</th><th>Uncorrected</th></tr></thead><tbody>${tRows.join('')}</tbody></table>`;
+}
+
 function renderRecent(s) {
   const fc = f => f ? `${f.reconstructed ? '<span class="recon" title="Reconstructed">↺</span>' : ''}${f2(f.water)}" <small>${f1(f.snow)}" snow · ${r0(f.hi)}°/${r0(f.lo)}°</small>` : '<span class="muted">–</span>';
   $('recent').innerHTML = s.recent.length ? `<table class="mtable score recent">
@@ -58,7 +85,7 @@ function renderWind(s) {
       ? `${s.snapshots} forecasts since ${day(s.since)}: ${s.snapshots - s.reconstructed} saved live${s.liveSince ? ` (from ${day(s.liveSince)})` : ''}, ${s.reconstructed} reconstructed ↺`
       : 'No forecasts saved yet';
     $('recon-note').hidden = !s.reconstructed;
-    renderWater(s); renderTemp(s); renderRecent(s); renderWind(s);
+    renderWater(s); renderTemp(s); renderPeaks(s); renderRecent(s); renderWind(s);
   } catch (e) {
     $('status').innerHTML = `<span class="warn">Couldn't load the scorecard (${e.message}).</span>`;
   }

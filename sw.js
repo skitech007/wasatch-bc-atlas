@@ -1,11 +1,12 @@
 // Offline shell: the app's own pages and scripts come from the network when there is one and from
 // this cache when there isn't. Live data (forecasts, tiles, /api) is never cached here.
-const CACHE = 'atlas-shell-v1';
+const CACHE = 'atlas-shell-v2';
 const SHELL = [
-  './', 'index.html', 'home.css', 'home.js', 'backcountry.html', 'app.css', 'app.js', 'dem.js', 'tile-worker.js',
-  'forecast.html', 'forecast.css', 'forecast.js', 'forecast-data.js', 'snow.js', 'avalanche.js',
-  'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest',
+  './', 'index.html', 'home.css', 'home.js', 'backcountry.html', 'backcountry.css', 'app.css', 'app.js', 'dem.js', 'tile-worker.js',
+  'risk.js', 'sun.js', 'avalanche.js', 'forecast.html', 'forecast.css', 'forecast.js', 'forecast-data.js', 'snow.js',
+  'scorecard.html', 'scorecard.js', 'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png',
   'data/alta_calibration.json', 'data/avalanche_paths.geojson', 'data/uac_zones.geojson', 'data/uac_routes.json',
+  'data/lcc_tours.geojson', 'data/nhd_streams.geojson',
 ];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

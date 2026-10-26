@@ -257,16 +257,36 @@ async function scorecard(env) {
     const err = f => pairs.map(([o, fc]) => f(o, fc)).filter(v => v != null && !Number.isNaN(v));
     const mae = f => round(mean(err((o, fc) => { const v = f(o, fc); return v == null ? null : Math.abs(v); })));
     const wet = pairs.filter(([o, fc]) => o.water >= 0.1 || fc.water >= 0.1);
+    // Scored the way OpenSnow scores PEAKS 2.0: share of "significant errors" (water: a miss, a false
+    // alarm or more than 0.5" off; temperature: more than 3°F off) and how often each forecast was best
+    const sigW = (o, w) => w == null ? null : (Math.abs(w - o.water) > 0.5 || (o.water >= 0.1 && w < 0.02) || (w >= 0.1 && o.water < 0.02)) ? 1 : 0;
+    const rate = f => { const v = err(f); return v.length ? round(100 * mean(v), 0) : null; };
+    const contenders = [['blend', fc => fc.water], ...MODELS.map(m => [m.id, fc => fc.raw[m.id]])];
+    const bestCount = Object.fromEntries(contenders.map(([id]) => [id, 0]));
+    let bestDays = 0;
+    for (const [o, fc] of pairs) {
+      const vals = contenders.map(([id, g]) => [id, g(fc)]).filter(([, v]) => v != null);
+      if (vals.length < 2 || (o.water < 0.02 && vals.every(([, v]) => v < 0.02))) continue;   // dry and everyone right: no contest
+      const errs = vals.map(([id, v]) => [id, Math.abs(v - o.water)]);
+      const min = Math.min(...errs.map(e => e[1]));
+      const winners = errs.filter(e => e[1] - min < 0.005);
+      winners.forEach(([id]) => { bestCount[id] += 1 / winners.length; });
+      bestDays++;
+    }
     return {
       lead, days: pairs.length, wetDays: wet.length, reconstructedDays: pairs.filter(([, fc]) => fc.reconstructed).length,
       water: {
         blend: mae((o, fc) => fc.water - o.water),
         bias: round(mean(err((o, fc) => fc.water - o.water))),
         raw: Object.fromEntries(MODELS.map(m => [m.id, mae((o, fc) => fc.raw[m.id] == null ? null : fc.raw[m.id] - o.water)])),
+        sig: { blend: rate((o, fc) => sigW(o, fc.water)), raw: Object.fromEntries(MODELS.map(m => [m.id, rate((o, fc) => sigW(o, fc.raw[m.id]))])) },
+        best: { days: bestDays, share: Object.fromEntries(Object.entries(bestCount).map(([id, n]) => [id, bestDays ? round(100 * n / bestDays, 0) : null])) },
       },
       temp: {
         hi: mae((o, fc) => o.hi == null ? null : fc.hi - o.hi), hiRaw: mae((o, fc) => o.hi == null ? null : fc.hiRaw - o.hi),
         lo: mae((o, fc) => o.lo == null ? null : fc.lo - o.lo), loRaw: mae((o, fc) => o.lo == null ? null : fc.loRaw - o.lo),
+        sig: rate((o, fc) => o.hi == null || o.lo == null ? null : (Math.abs(fc.hi - o.hi) > 3) + (Math.abs(fc.lo - o.lo) > 3) > 0 ? 1 : 0),
+        sigRaw: rate((o, fc) => o.hi == null || o.lo == null ? null : (Math.abs(fc.hiRaw - o.hi) > 3) + (Math.abs(fc.loRaw - o.lo) > 3) > 0 ? 1 : 0),
       },
     };
   });

@@ -513,6 +513,7 @@ function setDrawing(on) {
   document.getElementById('draw-hint').hidden = !on;
   map.getCanvas().style.cursor = on ? 'crosshair' : '';
   on ? map.doubleClickZoom.disable() : map.doubleClickZoom.enable();
+  map.getSource('route')?.setData(routeGeoJSON());
 }
 
 function addRoutePoint(ll) {
@@ -523,7 +524,8 @@ function addRoutePoint(ll) {
 
 function routeGeoJSON() {
   // vertex dots only for hand-drawn routes; long imported tracks just show the line
-  const feats = state.route.length > 500 ? [] : state.route.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: c }, properties: {} }));
+  const showPts = state.drawing || (!state.routeName && state.route.length <= 500);
+  const feats = !showPts ? [] : state.route.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: c }, properties: {} }));
   if (state.route.length > 1) feats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: state.route }, properties: {} });
   return { type: 'FeatureCollection', features: feats };
 }

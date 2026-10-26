@@ -100,7 +100,7 @@ function renderDay() {
   if (f0) {
     h += flagRow(f0.snow >= FLAGS.newSnowIn || f0.water >= FLAGS.waterIn, '🌨️', `Forecast today: ${Math.round(f0.snow)}" snow, ${f0.water.toFixed(2)}" water`, '', 'Alta blend at 9,895 ft, 6 pm–6 pm.');
     if (f0.rain >= 0.05) h += flagRow(true, '🌧️', `Rain forecast: ${f0.rain.toFixed(2)}"`, 'Rain loads and weakens the snowpack.', 'avalanche.org: rain also loads and adds stress to the snowpack.');
-    h += flagRow(f0.high != null && f0.high > 32, '☀️', `High ${f0.high == null ? '–' : Math.round(f0.high) + '°F'} at 9,895 ft${f0.fz ? `, freezing level ${Math.round(f0.fz / 100) * 100}′` : ''}`,
+    h += flagRow(f0.high != null && f0.high > 32, '☀️', `High ${f0.high == null ? '–' : Math.round(f0.high) + '°F'} at 9,895 ft${f0.fz ? `, freezing level ${(Math.round(f0.fz / 100) * 100).toLocaleString()}′` : ''}`,
       f0.high > 32 ? 'Above freezing: sunny SE–SW slopes warm first. Cody bails rather than sit under warming slopes.' : '', '');
     h += flagRow(f0.ws >= FLAGS.windMph, '🌬️', `Forecast wind: up to ${Math.round(f0.ws)} mph`, f0.ws >= FLAGS.windMph ? 'Enough to move loose snow onto lee slopes.' : '', 'Alta blend, 10 m wind at the forecast point.');
   }
