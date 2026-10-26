@@ -1,17 +1,17 @@
-/* Home: Alta 15-day snow, fitted to one screen, then the two doors. Builds on app.css tokens. */
+/* Home: Alta 15-day snow as a landscape chart, the next storm and today, then the two doors.
+   Builds on app.css tokens. Content flows at its natural height; nothing stretches to fill the screen. */
 .home {
   --s1: #3987e5;
   --powder: #f08a24;
   --card: #18202a;
+  height: auto;
   min-height: 100%;
-  height: 100dvh;
-  display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   max-width: 760px;
   margin: 0 auto;
-  padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+  padding: max(10px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
   gap: 12px;
-  overflow: hidden;
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
@@ -29,7 +29,6 @@
 
 .snow {
   background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 8px;
-  display: flex; flex-direction: column; min-height: 0;
 }
 .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
 .totals div { text-align: center; }
@@ -37,7 +36,11 @@
 .totals span { color: var(--muted); font-size: 11px; }
 .totals .obs b { color: var(--muted); }
 
-.chart { flex: 1; min-height: 180px; display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; position: relative; }
+.chart {
+  /* always wider than tall: grows with the width, capped so it never becomes a tower */
+  height: clamp(150px, 30vw, 240px);
+  display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; position: relative;
+}
 .col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .col .v { font-size: 11px; font-weight: 700; height: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .col .area { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
@@ -65,8 +68,17 @@
 .home-foot { display: flex; justify-content: space-between; font-size: 12px; }
 .linkish { background: none; border: 0; color: var(--accent); padding: 0; cursor: pointer; font: inherit; }
 
-@media (max-height: 640px) {
+/* next storm + today */
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.mini-card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+.mini-card .big { font-size: 20px; font-weight: 700; line-height: 1.15; }
+.mini-card .big small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.mini-card p { margin: 3px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.mini-card p b { color: var(--text); font-weight: 600; }
+.mini-card .pow { color: var(--powder); }
+
+@media (max-width: 360px) {
+  .cards { grid-template-columns: 1fr; }
   .totals b { font-size: 18px; }
-  .door { min-height: 60px; padding: 10px; }
-  .note { display: none; }
 }
