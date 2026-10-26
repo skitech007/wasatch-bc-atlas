@@ -14,21 +14,24 @@
    Output: tiles/runout/{z}/{x}/{y}.png, one byte per pixel = runout class × 8 + ATES class
      runout class: 0 none · 1 extended reach (18°) · 2 typical reach (24°) · 3 start zone
      ATES class:   0 non-avalanche · 1 simple · 2 challenging · 3 complex · 4 extreme
-2. Little Cottonwood tours: rough lines from tools/lcc_tours.json, the lowest-cost way across the
-   terrain where cost grows with slope, ATES class and mapped avalanche paths.
-   That's the "longer but safer" preference Cody Townsend describes, written down as numbers.
-   Output: data/lcc_tours.geojson
+2. Tours: rough lines from tools/tours.json, the lowest-cost way across the terrain where cost grows
+   with slope, ATES class and mapped avalanche paths. That's the "longer but safer" preference Cody
+   Townsend describes, written down as numbers. A tour can instead give an OpenStreetMap way.
+   Also per tour: map slope and aspect at each named run, and the avalanche-death locations
+   (WBSkiing list, data/avalanche_deaths_wbs.json) near the line or its runs.
+   Output: data/tours.geojson
 3. Streams for terrain-trap checks: USGS NHD large-scale flowlines. Output: data/nhd_streams.geojson
 
 Elevation: AWS Terrain Tiles (Terrarium), USGS 3DEP in the US, zoom 13 (~11 m cells here).
 
 Run:  python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
-      .venv/bin/python -I tools/terrain_wasatch.py
+      .venv/bin/python -I tools/terrain_wasatch.py [--no-streams]
 """
 import io
 import json
 import math
 import os
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -42,7 +45,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, 'tools', '.cache', 'terrarium')
 DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
 Z = 13
-BBOX = (-111.86, 40.48, -111.50, 40.70)          # west, south, east, north
+BBOX = (-111.86, 40.48, -111.50, 40.72)          # west, south, east, north (north edge takes in the Mill Creek winter gate)
 OUT_ZOOMS = (11, 12, 13, 14)
 
 TCC_URL = 'https://imagery.geoplatform.gov/iipp/rest/services/Vegetation/USFS_EDW_NLCD_TCC_CONUS/ImageServer'
@@ -122,6 +125,18 @@ def slope_deg(dem, cs):
     gx = ((c + 2 * f + i) - (a + 2 * d + g)) / k
     gy = ((g + 2 * h + i) - (a + 2 * b + c)) / k
     return np.degrees(np.arctan(np.hypot(gx, gy)))
+
+
+def aspect_deg(dem, cs):
+    """Direction the slope faces, degrees clockwise from north (rows run south, so north = -row)."""
+    p = np.pad(dem, 1, mode='edge')
+    a, b, c = p[:-2, :-2], p[:-2, 1:-1], p[:-2, 2:]
+    d, f = p[1:-1, :-2], p[1:-1, 2:]
+    g, h, i = p[2:, :-2], p[2:, 1:-1], p[2:, 2:]
+    k = (8 * cs)[:, None]
+    gx = ((c + 2 * f + i) - (a + 2 * d + g)) / k
+    gy = ((g + 2 * h + i) - (a + 2 * b + c)) / k
+    return np.degrees(np.arctan2(-gx, gy)) % 360
 
 
 # Neighbours in circular order (E, NE, N, NW, W, SW, S, SE) so "either side of the steepest" is ±1
@@ -318,30 +333,84 @@ def rdp(pts, eps):
     return [pts[0], pts[-1]]
 
 
-def build_tours(dem, slope, ates, mapped, x0, y0):
-    with open(os.path.join(ROOT, 'tools', 'lcc_tours.json')) as f:
+COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+RUN_RADIUS_M = 40          # map slope/aspect read within this distance of a run's listed point
+DEATH_RADIUS_M = 300       # avalanche-death locations this close to a line or run are listed with the tour
+
+
+def build_tours(dem, slope, aspect, ates, mapped, x0, y0, cs):
+    with open(os.path.join(ROOT, 'tools', 'tours.json')) as f:
         cfg = json.load(f)
-    pts = cfg['points']
+    with open(os.path.join(ROOT, 'data', 'avalanche_deaths_wbs.json')) as f:
+        deaths = json.load(f)['places']
     cost = slope_cost(slope)
     cost = cost * np.vectorize(ATES_COST.get)(ates)
     cost = np.where(mapped, cost * MAPPED_PATH_COST, cost)
-    mcp_cache = {}
-    to_rc = lambda p: (int((lat2y(p['lat'], Z) - y0) * 256), int((lon2x(p['lon'], Z) - x0) * 256))
+    to_rc = lambda lat, lon: (int((lat2y(lat, Z) - y0) * 256), int((lon2x(lon, Z) - x0) * 256))
     to_ll = lambda r, c: (x2lon(x0 + (c + 0.5) / 256, Z), y2lat(y0 + (r + 0.5) / 256, Z))
+    ft = lambda m: int(round(m * 3.28084, -1))
+
+    # points; "crest_from" points walk from a sourced point along a bearing (uphill, opposite the
+    # listed aspect) and stop at the first crest: the highest sample before the ground drops 5 m
+    pts = {}
+    for name, p in cfg['points'].items():
+        q = dict(p)
+        if 'crest_from' in p:
+            b = math.radians(p['bearing'])
+            best, best_ll, prev_best = -1e9, None, None
+            for i in range(0, 161):                       # up to 800 m, every 5 m
+                d = 5 * i
+                lat = p['lat'] + d * math.cos(b) / 111320
+                lon = p['lon'] + d * math.sin(b) / (111320 * math.cos(math.radians(p['lat'])))
+                r, c = to_rc(lat, lon)
+                e = dem[r, c]
+                if e > best:
+                    best, best_ll = e, (lat, lon)
+                elif best - e > 5:
+                    break
+            q.update(lat=round(best_ll[0], 6), lon=round(best_ll[1], 6), elev_ft=ft(best))
+            print(f'  {name}: {q["elev_ft"]} ft, {haversine((p["lon"], p["lat"]), (best_ll[1], best_ll[0])):.0f} m from {p["crest_from"]}')
+        pts[name] = q
+
+    def run_terrain(lat, lon):
+        r0, c0 = to_rc(lat, lon)
+        k = max(1, int(round(RUN_RADIUS_M / cs[r0])))
+        rr, cc = np.mgrid[r0 - k:r0 + k + 1, c0 - k:c0 + k + 1]
+        inside = (rr - r0) ** 2 + (cc - c0) ** 2 <= k * k
+        sl = slope[r0 - k:r0 + k + 1, c0 - k:c0 + k + 1][inside]
+        asp = np.radians(aspect[r0 - k:r0 + k + 1, c0 - k:c0 + k + 1][inside])
+        mean = math.degrees(math.atan2(np.sin(asp).mean(), np.cos(asp).mean())) % 360
+        return {'elev_ft': ft(dem[r0, c0]), 'slope_med': int(round(float(np.median(sl)))), 'slope_max': int(round(float(sl.max()))),
+                'aspect': COMPASS[int((mean + 11.25) // 22.5) % 16]}
+
+    mcp_cache = {}
     feats = []
     for t in cfg['tours']:
         stops = [t['from'], *t['via'], t['to']]
-        path = []
-        for a, b in zip(stops, stops[1:]):
-            ra, rb = to_rc(pts[a]), to_rc(pts[b])
-            m = mcp_cache.get(a)
-            if m is None:
-                m = MCP_Geometric(cost, fully_connected=True)
-                m.find_costs([ra])
-                mcp_cache[a] = m
-            leg = m.traceback(rb)
-            path.extend(leg if not path else leg[1:])
-        ll = [to_ll(r, c) for r, c in path]
+        if t.get('line', {}).get('coords'):
+            # a mapped line (OpenStreetMap way): sample it every ~5 m for the stats
+            src = t['line']['coords']
+            dense = []
+            for (lo1, la1), (lo2, la2) in zip(src, src[1:]):
+                n = max(1, int(haversine((lo1, la1), (lo2, la2)) / 5))
+                dense += [(lo1 + (lo2 - lo1) * i / n, la1 + (la2 - la1) * i / n) for i in range(n)]
+            dense.append(tuple(src[-1]))
+            path = [to_rc(la, lo) for lo, la in dense]
+            ll = dense
+            simple = [list(c) for c in src]
+        else:
+            path = []
+            for a, b in zip(stops, stops[1:]):
+                ra, rb = to_rc(pts[a]['lat'], pts[a]['lon']), to_rc(pts[b]['lat'], pts[b]['lon'])
+                m = mcp_cache.get(ra)
+                if m is None:
+                    m = MCP_Geometric(cost, fully_connected=True)
+                    m.find_costs([ra])
+                    mcp_cache[ra] = m
+                leg = m.traceback(rb)
+                path.extend(leg if not path else leg[1:])
+            ll = [to_ll(r, c) for r, c in path]
+            simple = rdp([list(p) for p in ll], 0.00006)
         # stats along the full-resolution path (zoom 13 elevation; the app recomputes at zoom 14)
         dist = sum(haversine(ll[i - 1], ll[i]) for i in range(1, len(ll)))
         el = [dem[r, c] for r, c in path]
@@ -350,30 +419,42 @@ def build_tours(dem, slope, ates, mapped, x0, y0):
         cl = [int(ates[r, c]) for r, c in path]
         seg = [haversine(ll[i - 1], ll[i]) for i in range(1, len(ll))]
         by_ates = [round(sum(s for s, k in zip(seg, cl[1:]) if k == a) / 1609.344, 2) for a in range(5)]
-        simple = rdp([list(p) for p in ll], 0.00006)
+        runs = []
+        for r in t.get('runs', []):
+            runs.append({**r, 'map': run_terrain(r['lat'], r['lon'])})
+        near = []
+        probe = ll[::4] + [(r['lon'], r['lat']) for r in runs]
+        for d in deaths:
+            dmin = min(haversine((d['lon'], d['lat']), q) for q in probe)
+            if dmin <= DEATH_RADIUS_M:
+                near.append({**d, 'm': int(round(dmin, -1))})
+        props = {k: v for k, v in t.items() if k not in ('line',)}
+        props.update({
+            'points': {k: pts[k] for k in stops},
+            'line_source': (f"OpenStreetMap way {t['line']['osm_way']}" if t.get('line', {}).get('coords') else 'computed'),
+            'runs': runs, 'deaths_near': near,
+            'approx': {
+                'distance_mi': round(dist / 1609.344, 2), 'gain_ft': ft(gain), 'high_ft': ft(max(el)),
+                'max_slope': int(round(max(sl))), 'ates_mi': by_ates,
+            },
+        })
         feats.append({
             'type': 'Feature',
             'geometry': {'type': 'LineString', 'coordinates': [[round(x, 6), round(y, 6)] for x, y in simple]},
-            'properties': {
-                'id': t['id'], 'name': t['name'], 'from': t['from'], 'via': t['via'], 'to': t['to'],
-                'uac': t['uac'], 'onx': t['onx'],
-                'points': {k: pts[k] for k in stops},
-                'approx': {
-                    'distance_mi': round(dist / 1609.344, 2), 'gain_ft': int(round(gain * 3.28084, -1)),
-                    'high_ft': int(round(max(el) * 3.28084, -1)), 'max_slope': int(round(max(sl))),
-                    'ates_mi': by_ates,
-                },
-            },
+            'properties': props,
         })
-        print(f"  {t['name']}: {feats[-1]['properties']['approx']}")
+        print(f"  {t['name']}: {props['approx']}  deaths near: {[d['name'] for d in near]}")
     return {
         'type': 'FeatureCollection', 'features': feats,
+        'sources': cfg['sources'], 'not_added': cfg.get('not_added', []),
         'source': {
-            'what': 'Computed rough lines, not surveyed routes. Lowest-cost path across zoom-13 elevation, cost rising with slope, with the forest-adjusted ATES class and inside mapped avalanche paths.',
+            'what': 'Computed rough lines, not surveyed routes, unless line_source names an OpenStreetMap way. Lowest-cost path across zoom-13 elevation, cost rising with slope, with the forest-adjusted ATES class and inside mapped avalanche paths.',
             'cost': {'slope': '1 up to 15°, 1+((s-15)/10)^2 above, x25 over 45°', 'ates_class': ATES_COST, 'mapped_path': MAPPED_PATH_COST},
             'ates_mi': 'miles in ATES class 0 non-avalanche, 1 simple, 2 challenging, 3 complex, 4 extreme',
-            'points': 'OpenStreetMap (© OpenStreetMap contributors, ODbL) and USGS GNIS; ids on each feature',
-            'names': 'Tour names from onX Backcountry screenshots and Utah Avalanche Center route-rating pages',
+            'runs_map': f'map slope (median and max) and mean aspect within {RUN_RADIUS_M} m of each run point, zoom-13 elevation',
+            'deaths_near': f'WBSkiing avalanche-death locations within {DEATH_RADIUS_M} m of the line or a run point',
+            'points': 'OpenStreetMap (© OpenStreetMap contributors, ODbL), USGS GNIS, WBSkiing.com location list, Powder Project; ids on each point',
+            'names': "Tour names from Matt's photos (onX, Reddit, White Cloud Concierge) and Utah Avalanche Center route-rating pages",
             'elevation': 'AWS Terrain Tiles (Terrarium), USGS 3DEP',
             'built': time.strftime('%Y-%m-%d'),
         },
@@ -386,8 +467,15 @@ def fetch_streams():
            '&outFields=gnis_name,ftype&returnGeometry=true&geometryPrecision=5&f=geojson')
     feats, offset = [], 0
     while True:
-        with urllib.request.urlopen(url + f'&resultOffset={offset}&resultRecordCount=1000', timeout=120) as r:
-            d = json.load(r)
+        for attempt in range(4):
+            try:
+                with urllib.request.urlopen(url + f'&resultOffset={offset}&resultRecordCount=1000', timeout=180) as r:
+                    d = json.load(r)
+                break
+            except Exception:
+                if attempt == 3:
+                    raise
+                time.sleep(5 * (attempt + 1))
         page = d.get('features', [])
         feats += [{'type': 'Feature', 'geometry': f['geometry'], 'properties': {'name': f['properties'].get('gnis_name')}}
                   for f in page if f['properties'].get('ftype') in (460, 558)]
@@ -423,10 +511,11 @@ def main():
     print('ATES share:', {n: f'{(ates == i).mean():.1%}' for i, n in enumerate(['non', 'simple', 'challenging', 'complex', 'extreme'])})
     print(f'tiles written: {write_tiles(cls * 8 + ates, x0, y0)}')
     mapped = mapped_paths_mask(dem.shape, x0, y0)
-    tours = build_tours(dem, slope, ates, mapped, x0, y0)
-    with open(os.path.join(ROOT, 'data', 'lcc_tours.geojson'), 'w') as f:
+    tours = build_tours(dem, slope, aspect_deg(dem, cs), ates, mapped, x0, y0, cs)
+    with open(os.path.join(ROOT, 'data', 'tours.geojson'), 'w') as f:
         json.dump(tours, f, separators=(',', ':'))
-    print(f'streams: {fetch_streams()}  ({time.time() - t0:.0f}s total)')
+    if '--no-streams' not in sys.argv:                 # the USGS service is slow; skip it on reruns
+        print(f'streams: {fetch_streams()}  ({time.time() - t0:.0f}s total)')
 
 
 if __name__ == '__main__':

@@ -188,6 +188,10 @@ map.once('style.load', async () => {
   map.addLayer({ id: 'tours-hit', type: 'line', source: 'tours', paint: { 'line-color': '#000', 'line-width': 16, 'line-opacity': 0 } });
   map.addLayer({ id: 'tours-label', type: 'symbol', source: 'tours', minzoom: 12, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 12 }, paint: { 'text-color': '#ecd9ff', 'text-halo-color': '#2a0a3a', 'text-halo-width': 1.4 } });
 
+  map.addSource('tour-marks', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'tour-marks-dot', type: 'circle', source: 'tour-marks', paint: { 'circle-radius': ['match', ['get', 'kind'], 'death', 4, 5], 'circle-color': ['match', ['get', 'kind'], 'death', '#2b0a12', '#ffffff'], 'circle-stroke-color': ['match', ['get', 'kind'], 'death', '#ff6b8a', '#7c3aed'], 'circle-stroke-width': 2 } });
+  map.addLayer({ id: 'tour-marks-label', type: 'symbol', source: 'tour-marks', layout: { 'text-field': ['case', ['==', ['get', 'kind'], 'death'], ['concat', '† ', ['get', 'name']], ['get', 'name']], 'text-font': ['Open Sans Semibold'], 'text-size': ['match', ['get', 'kind'], 'death', 10, 12], 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': ['match', ['get', 'kind'], 'death', '#ffb3c2', '#ffffff'], 'text-halo-color': '#1a0a2a', 'text-halo-width': 1.5 } });
+
   map.addSource('route', { type: 'geojson', data: routeGeoJSON() });
   map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b0f14', 'line-width': 6 } });
   map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffcf4a', 'line-width': 3 } });
@@ -292,6 +296,11 @@ function bindUI() {
   bindSheet();
   document.querySelectorAll('.tabs [role=tab]').forEach(b => b.onclick = () => openTab(b.dataset.tab));
   openTab(store.get('tab', 'tours'), false);
+  $('guide-jump').onclick = () => {
+    const tab = $('tab-plan');
+    if ($('panel').dataset.state === 'peek') setSheet('half');
+    tab.scrollTo({ top: $('tour-guide').offsetTop - 8, behavior: 'smooth' });
+  };
 
   $('pace').value = String(store.get('pace', 1000));
   $('pace').onchange = () => { store.set('pace', +$('pace').value); updateRoute(); renderTours(); };
@@ -349,7 +358,7 @@ function bindUI() {
   $('undo-btn').onclick = () => { state.route.pop(); updateRoute(); };
   $('clear-btn').onclick = () => {
     if (state.route.length && !confirm('Clear the current route?')) return;
-    state.route = []; state.routeName = null; markTour(null); updateRoute();
+    state.route = []; state.routeName = null; state.tourId = null; markTour(null); updateRoute(); renderGuide();
   };
   $('gpx-out').onclick = exportGPX;
   $('gpx-in').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(importGPX); e.target.value = ''; };
@@ -768,8 +777,10 @@ function importGPX(text) {
     if (state.route.length > 1 && !confirm('Replace the current route with the imported track?')) return;
     state.route = line.map(c => [+c[0].toFixed(6), +c[1].toFixed(6)]);
     state.routeName = doc.querySelector('trk > name, rte > name')?.textContent || 'Imported GPX';
+    state.tourId = null;
     markTour(null);
     updateRoute();
+    renderGuide();
     const b = line.reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 80, pitch: map.getPitch() });
   }
@@ -789,59 +800,223 @@ async function loadUacRoutes() {
   document.getElementById('uac-count').textContent = `(${uac.routes.length})`;
   renderUacList();
   renderTours();
+  renderGuide();
 }
 
-/* ---------- Little Cottonwood tours (data/lcc_tours.geojson, built by tools/terrain_wasatch.py) ---------- */
+/* ---------- Tours (data/tours.geojson, built by tools/terrain_wasatch.py from tools/tours.json) ---------- */
+const AREA_ORDER = ['LCC', 'LCC → BCC', 'LCC (Alta)', 'BCC', 'BCC → Summit Co.', 'Mill Creek'];
+const AREA_NAME = { 'LCC': 'Little Cottonwood', 'LCC → BCC': 'From Alta into Big Cottonwood', 'LCC (Alta)': 'Inside Alta Ski Area', 'BCC': 'Big Cottonwood', 'BCC → Summit Co.': 'Big Cottonwood to the Park City ridge', 'Mill Creek': 'Mill Creek' };
+const SEEN_LABEL = { onx: 'onX', reddit: 'Reddit', whitecloud: 'White Cloud' };
+const SRC_SHORT = { wbs: 'WBSkiing', 'wbs-db': 'WBSkiing list', pp: 'Powder Project', uaco: 'UAC', 'uac-route': 'UAC route', 'uac-list': 'UAC list', onx: 'onX', reddit: 'Reddit', whitecloud: 'White Cloud', 'alta-uphill': 'Alta', 'alta-policy': 'Alta policy', 'slco-millcreek': 'SL County', 'trailsutah-millcreek': 'Trails Utah', sgid: 'SGID', osm: 'OSM' };
+const tourById = id => state.tours?.features.find(x => x.properties.id === id);
+state.tourId = store.get('tourId', null);
+
 async function loadTours() {
   const list = document.getElementById('tour-list');
   try {
-    state.tours = await fetch('data/lcc_tours.geojson').then(r => r.json());
+    state.tours = await fetch('data/tours.geojson').then(r => r.json());
   } catch (e) {
     list.innerHTML = `<li class="muted">Tours didn't load (${esc(e.message)}).</li>`;
     return;
   }
-  map.getSource('tours')?.setData(state.tours);
+  // the map only needs the line and its name; the guide reads the rest from state.tours
+  map.getSource('tours')?.setData({ type: 'FeatureCollection', features: state.tours.features.map(f => ({ type: 'Feature', geometry: f.geometry, properties: { id: f.properties.id, name: f.properties.name } })) });
+  // a route saved before tours had ids: find its tour by name
+  if (!state.tourId && state.routeName) state.tourId = state.tours.features.find(f => f.properties.name === state.routeName.replace(/ \(edited\)$/, ''))?.properties.id || null;
   renderTours();
+  renderPhotoIndex();
+  renderGuide();
+}
+function seenChips(seen) {
+  return Object.entries(seen || {}).filter(([, v]) => v.length).map(([k, v]) => `<span class="seen-chip ${k}" title="${esc(v.join(' · '))}">${SEEN_LABEL[k]}</span>`).join('');
+}
+function uacChip(p) {
+  const u = p.uac && uac?.routes.find(r => r.name === p.uac);
+  if (!u) return '';
+  const part = p.uac_match === 'approach';
+  return `<span class="uac-chip ${u.rating}${part ? ' part' : ''}" title="UAC route rating: ${esc(u.name)}${part ? ' (shares the approach; UAC did not rate the rest)' : ''}">UAC ${u.rating}${part ? " · approach" : ""}</span>`;
 }
 function renderTours() {
   if (!state.tours) return;
   const pace = +document.getElementById('pace').value || 1000;
   const list = document.getElementById('tour-list');
   document.getElementById('tour-count').textContent = `(${state.tours.features.length})`;
-  const rated = name => uac?.routes.find(r => r.name === name);
-  list.innerHTML = state.tours.features.map(f => {
-    const p = f.properties, a = p.approx, u = p.uac && rated(p.uac);
+  const byArea = {};
+  state.tours.features.forEach(f => (byArea[f.properties.area] ||= []).push(f));
+  list.innerHTML = AREA_ORDER.filter(a => byArea[a]).map(area => `<li class="tour-group">${esc(AREA_NAME[area] || area)}</li>` + byArea[area].map(f => {
+    const p = f.properties, a = p.approx, u = p.uac && uac?.routes.find(r => r.name === p.uac);
     const tot = a.ates_mi.reduce((x, y) => x + y, 0) || 1;
     const bar = a.ates_mi.map((v, k) => v > 0 && ATES_COLORS[k] ? `<i style="width:${100 * v / tot}%;background:rgb(${ATES_COLORS[k].join(',')})"></i>` : '').join('');
     const worst = a.ates_mi.reduce((w, v, k) => v >= 0.02 ? k : w, 0);
-    return `<li class="tour${state.routeName === p.name ? ' selected' : ''}" tabindex="0" role="button" data-id="${p.id}">
-      <div class="tour-top"><b>${esc(p.name)}</b>${u ? `<span class="uac-chip ${u.rating}" title="UAC route rating: ${esc(u.name)}">UAC ${u.rating}</span>` : ''}</div>
-      <div class="tour-sub">${esc([p.from, ...p.via].join(' → '))}${p.onx ? ` · onX: “${esc(p.onx)}”` : ''}</div>
+    return `<li class="tour${state.tourId === p.id ? ' selected' : ''}" tabindex="0" role="button" data-id="${p.id}">
+      <div class="tour-top"><b>${esc(p.name)}</b>${uacChip(p)}</div>
+      <div class="tour-sub">${seenChips(p.seen)}${esc([p.from, ...p.via].join(' → '))}</div>
       <div class="tour-stats"><span><b>≈${fmt(a.distance_mi, 1)}</b> mi</span><span><b>≈${fmt(a.gain_ft)}</b> ft</span><span><b>${fmt(a.high_ft)}</b> ft top</span><span><b>${hm(a.gain_ft / pace)}</b> up</span><span>max <b>${a.max_slope}°</b></span></div>
       <div class="ates-bar" title="Terrain class along the line">${bar}</div>
-      <div class="ates-key"><span>Up to <b>${ATES_NAMES[worst]}</b></span>${u ? `<span>UAC: ${u.distance_mi ?? '–'} mi, ${u.gain_ft ? fmt(u.gain_ft) + ' ft' : '–'} (published)</span>` : ''}</div>
+      <div class="ates-key"><span>Up to <b>${ATES_NAMES[worst]}</b></span>${p.runs?.length ? `<span>${p.runs.length} named run${p.runs.length > 1 ? 's' : ''}</span>` : ''}${p.slides?.length ? `<span>${p.slides.length} UAC slide report${p.slides.length > 1 ? 's' : ''}</span>` : ''}${u && p.uac_match === 'same' ? `<span>UAC: ${u.distance_mi ?? '–'} mi, ${u.gain_ft ? fmt(u.gain_ft) + ' ft' : '–'}</span>` : ''}</div>
     </li>`;
-  }).join('');
+  }).join('')).join('');
   list.querySelectorAll('.tour').forEach(li => {
     li.onclick = () => selectTour(li.dataset.id);
     li.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTour(li.dataset.id); } };
   });
 }
-function markTour(name) {
-  document.querySelectorAll('.tour').forEach(li => li.classList.toggle('selected', !!name && li.querySelector('b')?.textContent === name));
+// Every name from Matt's photos, and where it lives in the app
+function renderPhotoIndex() {
+  const el = document.getElementById('photo-index');
+  if (!el || !state.tours) return;
+  const rows = { onx: [], reddit: [], whitecloud: [] };
+  state.tours.features.forEach(f => Object.entries(f.properties.seen || {}).forEach(([k, names]) => names.forEach(n => rows[k]?.push([n, f.properties]))));
+  const skipped = state.tours.not_added || [];
+  el.innerHTML = Object.entries(rows).map(([k, r]) => `<h4>${SEEN_LABEL[k]} <span class="muted">(${r.length + skipped.filter(s => s.from === k).length})</span></h4><ul>` +
+    r.sort((x, y) => x[0].localeCompare(y[0])).map(([n, p]) => `<li>“${esc(n)}” → <button class="linkish" data-id="${p.id}">${esc(p.name)}</button></li>`).join('') +
+    skipped.filter(s => s.from === k).map(s => `<li>“${esc(s.name)}” → <span class="muted">not added: ${esc(s.why)}</span></li>`).join('') + '</ul>').join('');
+  el.querySelectorAll('button[data-id]').forEach(b => { b.onclick = () => selectTour(b.dataset.id); });
+}
+function markTour(id) {
+  document.querySelectorAll('.tour').forEach(li => li.classList.toggle('selected', !!id && li.dataset.id === id));
 }
 function selectTour(id) {
-  const f = state.tours?.features.find(x => x.properties.id === id);
+  const f = tourById(id);
   if (!f) return;
   setDrawing(false);
   state.route = f.geometry.coordinates.map(c => [c[0], c[1]]);
   state.routeName = f.properties.name;
-  markTour(state.routeName);
+  state.tourId = id;
+  markTour(id);
   updateRoute();
-  const b = state.route.reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
+  renderGuide();
+  const b = state.route.concat((f.properties.runs || []).map(r => [r.lon, r.lat]))
+    .reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
   const wide = matchMedia('(min-width: 900px)').matches;
   map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: wide ? { top: 80, bottom: 60, left: 420, right: 60 } : { top: 70, bottom: 260, left: 30, right: 50 }, pitch: map.getPitch(), duration: 900 });
   openTab('plan');
+}
+
+/* the selected tour's runs and nearby avalanche-death locations, on the map */
+function showTourMarks(p) {
+  const src = map.getSource('tour-marks');
+  if (!src) return;
+  const feats = p ? [
+    ...(p.runs || []).map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { kind: 'run', name: r.name } })),
+    ...(p.deaths_near || []).map(d => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [d.lon, d.lat] }, properties: { kind: 'death', name: d.name } })),
+  ] : [];
+  src.setData({ type: 'FeatureCollection', features: feats });
+}
+
+function srcLinks(keys, p) {
+  const all = state.tours?.sources || {};
+  return (keys || []).map(k => {
+    let url = all[k]?.url, title = all[k]?.title || k;
+    if (k === 'uac-route') { const u = uac?.routes.find(r => r.name === p.uac); url = u?.url; title = `UAC route rating: ${p.uac}`; }
+    const label = SRC_SHORT[k] || SRC_SHORT[k.split(':')[0]] || k;
+    return url ? `<a class="src" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(title)}">${esc(label)}</a>` : `<span class="src" title="${esc(title)}">${esc(label)}</span>`;
+  }).join('');
+}
+
+/* Save a tour's map for offline use: fetch every basemap, elevation and terrain-class tile around its
+   line and runs. The service worker keeps them (sw.js), so the map draws with no signal. */
+const tileXY = (lon, lat, z) => {
+  const n = 2 ** z, r = lat * Math.PI / 180;
+  return [Math.floor((lon + 180) / 360 * n), Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n)];
+};
+function offlineTiles(p, f) {
+  const pts = f.geometry.coordinates.concat((p.runs || []).map(r => [r.lon, r.lat]));
+  const b = pts.reduce((b, c) => [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])], [180, 90, -180, -90]);
+  const pad = [0.008, 0.006];                                  // about 650 m around everything
+  const W = b[0] - pad[0], S = b[1] - pad[1], E = b[2] + pad[0], N = b[3] + pad[1];
+  const urls = [];
+  const add = (tpl, z0, z1) => {
+    for (let z = z0; z <= z1; z++) {
+      const [x0, y0] = tileXY(W, N, z), [x1, y1] = tileXY(E, S, z);
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) urls.push(tpl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+    }
+  };
+  add(BASEMAPS[document.getElementById('basemap').value] || BASEMAPS.topo, 11, 16);
+  add(DEM_URL, 10, DEM_MAX_Z);
+  add(location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '') + RUNOUT_URL, RUNOUT_MIN_Z, RUNOUT_MAX_Z);   // same URL the tile worker asks for
+  return urls;
+}
+async function saveOffline(btn, p, f) {
+  if (!navigator.serviceWorker?.controller) { btn.textContent = 'Offline saving needs the installed app (reload once and try again)'; return; }
+  const urls = offlineTiles(p, f);
+  let done = 0, bad = 0, i = 0;
+  btn.disabled = true;
+  const worker = async () => {
+    while (i < urls.length) {
+      const u = urls[i++];
+      try { const r = await fetch(u); if (!r.ok) bad++; } catch { bad++; }
+      done++;
+      if (done % 10 === 0 || done === urls.length) btn.textContent = `Saving map… ${done} / ${urls.length}`;
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  const saved = store.get('offline', {});
+  saved[p.id] = { at: new Date().toISOString(), tiles: urls.length - bad, missing: bad };
+  store.set('offline', saved);
+  btn.disabled = false;
+  renderGuide();
+}
+
+async function renderGuide() {
+  const el = document.getElementById('tour-guide');
+  const f = state.tourId && tourById(state.tourId);
+  store.set('tourId', f ? state.tourId : null);
+  showTourMarks(f?.properties);
+  document.getElementById('guide-jump').hidden = !f;
+  if (!f) { el.innerHTML = ''; return; }
+  const p = f.properties, a = p.approx;
+  const items = list => (list || []).map(n => `<li>${esc(n.t)} ${srcLinks(n.src, p)}</li>`).join('');
+  const start = p.start ? `<p><b>Start:</b> ${esc(p.start.name)}${p.start.road_mi ? ` · ${p.start.road_mi} mi up the canyon road` : ''}${p.start.elev_ft ? ` · ${fmt(p.start.elev_ft)} ft` : ''} ${srcLinks([p.start.src], p)}</p>` : '';
+  const pub = (p.published || []).map(x => `<tr><td>${esc(x.what)} ${srcLinks([x.src], p)}</td><td>${x.vert_ft ? fmt(x.vert_ft) + ' ft' : '–'}</td><td>${x.dist_mi ? x.dist_mi + ' mi' : '–'}</td></tr>`).join('');
+  const lineSrc = p.line_source === 'computed' ? 'This computed line' : `This line (${esc(p.line_source)})`;
+  const runs = (p.runs || []).map((r, i) => {
+    const pub = [r.difficulty, r.slope ? `${r.slope}°` : null, r.aspect, r.ski_vert_ft ? `${fmt(r.ski_vert_ft)} ft` : null].filter(Boolean).join(' · ');
+    return `<li><button class="linkish run-go" data-i="${i}">${esc(r.name)}</button> ${srcLinks([r.src], p)}
+      <div class="run-line">${pub ? `<span>${esc(pub)}</span>` : '<span class="muted">location only</span>'}<span class="muted">map here: ${r.map.slope_med}° (max ${r.map.slope_max}°), faces ${r.map.aspect}, ${fmt(r.map.elev_ft)} ft</span></div>
+      ${r.pp ? `<div class="run-line muted">${esc(r.pp)}</div>` : ''}${r.note ? `<div class="run-line muted">${esc(r.note)}</div>` : ''}</li>`;
+  }).join('');
+  const slides = (p.slides || []).slice().sort((x, y) => y.date.localeCompare(x.date)).map(s => `<tr><td>${esc(s.date)}</td><td>${esc(s.place)}</td><td>${esc(s.trigger)}</td><td>${esc([s.depth, s.width ? s.width + ' wide' : null].filter(Boolean).join(', ') || '–')}</td><td>${esc([s.aspect, s.elev_ft ? fmt(s.elev_ft) + "'" : null].filter(Boolean).join(' ') || '–')}</td><td>${srcLinks([s.src], p)}</td></tr>`).join('');
+  const byName = {};
+  (p.deaths_near || []).forEach(d => { const g = (byName[d.name] ||= { n: 0, m: d.m }); g.n++; g.m = Math.min(g.m, d.m); });
+  const dn = Object.entries(byName);
+  const deaths = dn.length ? `<li>WBSkiing marks ${p.deaths_near.length} avalanche-death location${p.deaths_near.length > 1 ? 's' : ''} within 300 m of this line or its runs: ${esc(dn.map(([n, g]) => `${n}${g.n > 1 ? ` (${g.n} entries)` : ''}, ${g.m} m away`).join('; '))}. Marked † on the map. ${srcLinks(['wbs-db'], p)}</li>` : '';
+  const used = [...new Set([...(p.notes || []), ...(p.warn || [])].flatMap(n => n.src).concat((p.runs || []).map(r => r.src), (p.slides || []).map(s => s.src), (p.published || []).map(x => x.src), p.start ? [p.start.src] : []))];
+  const seen = Object.entries(p.seen || {}).filter(([, v]) => v.length).map(([k, v]) => `${SEEN_LABEL[k]}: ${v.map(x => `“${esc(x)}”`).join(', ')}`).join(' · ');
+  el.innerHTML = `
+    <div class="guide-head">${uacChip(p)}${seenChips(p.seen)}<span class="muted">${esc(AREA_NAME[p.area] || p.area)}</span></div>
+    ${seen ? `<p class="hint">In your photos as ${seen}</p>` : ''}
+    <div id="guide-status"></div>
+    <div class="offline-row"><button id="save-offline" class="cta">${(() => { const o = store.get('offline', {})[p.id]; return o ? `Saved for offline ${new Date(o.at).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(o.tiles)} tiles${o.missing ? ` (${o.missing} failed)` : ''} · save again` : 'Save this tour\'s map for offline'; })()}</button>
+      <p class="hint">Downloads the topo, elevation and terrain-class tiles around the line and its runs, so the map, slope shading and route checks work with no signal. Forecasts and avalanche data still need a connection.</p></div>
+    <details open><summary>Getting there</summary>${start}
+      <table class="mini"><tr><th></th><th>Climb</th><th>Distance</th></tr>${pub}<tr><td>${lineSrc}</td><td>≈${fmt(a.gain_ft)} ft</td><td>≈${fmt(a.distance_mi, 1)} mi</td></tr></table>
+      ${p.notes?.length ? `<ul class="guide-list">${items(p.notes)}</ul>` : ''}</details>
+    ${p.warn?.length || deaths ? `<details open><summary>Watch out</summary><ul class="guide-list warn">${items(p.warn)}${deaths}</ul></details>` : ''}
+    ${runs ? `<details open><summary>Runs <span class="muted">(${p.runs.length})</span></summary><p class="hint">Rating, slope and aspect as the source lists them; “map here” is measured within 40 m of the listed point, which can sit mid-run.</p><ul class="guide-list runs">${runs}</ul></details>` : ''}
+    ${slides ? `<details open><summary>Slides reported to UAC <span class="muted">(${p.slides.length})</span></summary><p class="hint">Reports read for this tour, not every slide on record. ${srcLinks(['uac-list'], p)}</p><table class="mini slides"><tr><th>Date</th><th>Where</th><th>Trigger</th><th>Size</th><th>Aspect</th><th></th></tr>${slides}</table></details>` : ''}
+    <details><summary>Sources <span class="muted">(${used.length})</span></summary><ul class="guide-list">${used.map(k => {
+      const s = state.tours.sources[k] || (k === 'uac-route' ? { title: `UAC route rating: ${p.uac}`, url: uac?.routes.find(r => r.name === p.uac)?.url } : { title: k });
+      return `<li>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>` : esc(s.title)}</li>`;
+    }).join('')}<li>Points: ${esc(Object.entries(p.points).map(([n, q]) => `${n}: ${q.source}`).join('; '))}</li></ul></details>`;
+  el.querySelector('#save-offline').onclick = e => saveOffline(e.currentTarget, p, f);
+  el.querySelectorAll('.run-go').forEach(b => {
+    b.onclick = () => { const r = p.runs[+b.dataset.i]; map.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); };
+  });
+  if (p.status === 'alta-uphill') {
+    const box = document.getElementById('guide-status');
+    box.innerHTML = '<div class="check info"><b>Alta uphill:</b> checking…</div>';
+    try {
+      const u = await fetch('/api/uphill').then(r => r.json());
+      if (state.tourId !== p.id) return;
+      const cls = u.status === 'open' ? 'ok' : u.status === 'closed' ? 'bad' : 'info';
+      box.innerHTML = `<div class="check ${cls}"><b>Alta uphill:</b> ${u.text ? esc(u.text) : 'status not found on the page'}${u.updated ? ` <span class="muted">(Alta, updated ${esc(u.updated)})</span>` : ''}${u.summerRoad ? ` ${esc(u.summerRoad)}` : ''} <a href="${esc(u.url)}" target="_blank" rel="noopener">alta.com ↗</a></div>`;
+    } catch {
+      box.innerHTML = '<div class="check info"><b>Alta uphill:</b> couldn\'t check. Alta can close uphill travel before opening day; <a href="https://www.alta.com/uphill-travel" target="_blank" rel="noopener">check alta.com ↗</a></div>';
+    }
+  } else if (p.status === 'millcreek-road') {
+    document.getElementById('guide-status').innerHTML = `<div class="check bad"><b>Access:</b> the upper Mill Creek road was closed to everyone for reconstruction from March 15, 2026; Trails Utah says it reopens for winter use in November 2026. ${srcLinks(['slco-millcreek', 'trailsutah-millcreek'], p)}</div>`;
+  }
 }
 function renderUacList() {
   if (!uac) return;
@@ -901,3 +1076,5 @@ async function loadAltaSnow() {
     if (el) el.innerHTML = `<p class="hint">Forecast didn't load (${esc(e.message)}).</p>`;
   }
 }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

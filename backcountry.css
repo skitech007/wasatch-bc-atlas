@@ -79,6 +79,38 @@
 .uac-chip.Yellow { background: var(--yellow); color: #1d1700; }
 .uac-chip.Orange { background: var(--orange); color: #1f0f00; }
 .uac-chip.Red { background: var(--red); color: #fff; }
+.uac-chip.part { background: transparent; border: 1.5px solid; }
+.uac-chip.part.Green { color: var(--green); } .uac-chip.part.Yellow { color: var(--yellow); }
+.uac-chip.part.Orange { color: var(--orange); } .uac-chip.part.Red { color: #ff7a6e; }
+.tour-group { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+.tour-group:first-child { margin-top: 4px; }
+.seen-chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 5px; vertical-align: 1px; color: #0b0f14; }
+.seen-chip.onx { background: #c084fc; } .seen-chip.reddit { background: #ff8a4c; } .seen-chip.whitecloud { background: #e6edf5; }
+.linkish { background: none; border: 0; color: var(--accent); padding: 0; cursor: pointer; font: inherit; text-align: left; }
+.photo-index h4 { font-size: 12px; margin: 10px 0 4px; }
+.photo-index ul { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.6; }
+
+/* ---------- tour guide (Plan tab) ---------- */
+.guide { margin: 6px 0 12px; }
+.guide:empty { display: none; }
+.guide-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; margin: 6px 0; }
+.guide details { padding: 6px 0; }
+.guide summary { font-weight: 700; font-size: 14px; }
+.guide p { font-size: 13px; line-height: 1.45; margin: 6px 0; }
+.guide #guide-status:not(:empty) { margin: 8px 0; }
+.guide-list { margin: 6px 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.guide-list li { margin-bottom: 6px; }
+.guide-list.warn li::marker { color: var(--orange); }
+.guide-list.runs { padding-left: 0; list-style: none; }
+.guide-list.runs li { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.run-line { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+.src { display: inline-block; font-size: 10px; font-weight: 600; padding: 0 5px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; vertical-align: 1px; margin-left: 2px; white-space: nowrap; }
+a.src:hover { color: var(--text); border-color: var(--muted); }
+table.mini { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; margin: 6px 0; }
+table.mini th, table.mini td { padding: 4px 3px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.mini th { color: var(--muted); font-weight: 600; }
+table.slides td:first-child, table.mini td:not(:first-child) { white-space: nowrap; }
+.guide-jump { font-size: 13px; margin: 0 0 6px; }
 
 /* ---------- plan ---------- */
 .pace-row { flex-wrap: wrap; }
@@ -140,3 +172,6 @@
 .cta { display: block; text-align: center; padding: 10px; border-radius: 10px; background: var(--btn); border: 1px solid var(--line); margin: 8px 0; font-weight: 600; color: var(--text); text-decoration: none; cursor: pointer; width: 100%; font-size: 14px; }
 .cta.primary { background: #1f6b43; border-color: #2c8a59; }
 .ates-key[hidden] { display: none; }
+.offline-row { margin: 8px 0 4px; }
+.offline-row .cta { margin: 0; font-size: 13px; }
+.offline-row .cta:disabled { opacity: 0.8; cursor: progress; }

@@ -4,3 +4,4 @@
 .dev.vars
 tools/.cache
 .venv
+__pycache__

@@ -32,6 +32,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/scorecard') return json(await scorecard(env), 600);
     if (url.pathname === '/api/avalanche') return avalancheCached(request, env, url.searchParams.get('asOf'));
+    if (url.pathname === '/api/uphill') return uphillCached(request);
     if (url.pathname === '/api/corrections') return json((await env.SCORE.get('corrections', 'json')) || {}, 1800);
     if (url.pathname === '/api/run' && request.method === 'POST') {
       if (!env.RUN_KEY || request.headers.get('x-run-key') !== env.RUN_KEY) return new Response('Forbidden', { status: 403 });
@@ -310,6 +311,32 @@ const pick = d => d ? { water: d.water, snow: d.snow, hi: d.hi, lo: d.lo, recons
 // carries UAC's overall rating per day.
 const AVY_ZONE = 'Salt Lake';
 const WIND_LOADING_MPH = 15;   // Avalanche Canada: moderate winds, 25–40 km/h (~15–25 mph), build wind slabs best
+
+// Alta's uphill-travel status, read off alta.com/uphill-travel (the page's own wording, plus its "Updated" stamp)
+const ALTA_UPHILL = 'https://www.alta.com/uphill-travel';
+async function uphillCached(request) {
+  const cache = caches.default;
+  const key = new Request(new URL('/api/uphill', request.url));
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  let body;
+  try {
+    const r = await fetch(ALTA_UPHILL, { headers: { 'User-Agent': 'wasatch-bc-atlas (https://wasatch-bc-atlas.mattsanford.workers.dev)' } });
+    if (!r.ok) throw new Error(`${r.status} from alta.com`);
+    const text = (await r.text()).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#0?39;|&rsquo;/g, "'").replace(/\s+/g, ' ');
+    const status = text.match(/Alta Ski Area is (?:currently )?(open|closed) (?:to|for) Uphill Travel[^.]*\./i);
+    const updated = text.match(/Updated\s+([0-9/]+\s*@?\s*[0-9:]+\s*[ap]m)/i);
+    const road = text.match(/The Summer Road is[^.]*\./i);
+    body = { status: status ? status[1].toLowerCase() : 'unknown', text: status?.[0] || null, updated: updated?.[1] || null,
+             summerRoad: road?.[0] || null, url: ALTA_UPHILL, fetched: new Date().toISOString() };
+  } catch (e) {
+    return json({ status: 'unknown', error: String(e.message || e), url: ALTA_UPHILL });
+  }
+  const res = json(body, 1800);
+  await cache.put(key, res.clone());
+  return res;
+}
 
 async function avalancheCached(request, env, asOf) {
   const cache = caches.default;

@@ -14,10 +14,10 @@ Then open http://localhost:8080.
 
 - `index.html`, `home.css`, `home.js`: home screen, Alta's 15-day snow fitted to one phone screen, then Backcountry and Resort
 - `backcountry.html`, `backcountry.css`, `app.css`: the 3D map; phone bottom sheet with Tours / Plan / Map tabs
-- `app.js`: map, layers, avalanche rose, route drawing, Cody Townsend-style route checks, LCC tours, pins, GPX
+- `app.js`: map, layers, avalanche rose, route drawing, Cody Townsend-style route checks, tours and their guides, pins, GPX
 - `risk.js`, `avalanche.js`: the Avalanche Risk sheet (Day / Week / Month) and its red-flag thresholds
 - `sun.js`: sun position for real-sun hillshading
-- `tools/terrain_wasatch.py`: AutoATES-method terrain class and runout reach tiles (`tiles/runout/`), the computed LCC tour lines (`data/lcc_tours.geojson`, from `tools/lcc_tours.json`) and NHD streams. Needs `tools/requirements.txt`
+- `tools/terrain_wasatch.py`: AutoATES-method terrain class and runout reach tiles (`tiles/runout/`), the tours (`data/tours.geojson`, from `tools/tours.json`: computed lines, map slope/aspect at each named run, avalanche-death locations nearby) and NHD streams. Needs `tools/requirements.txt`
 - `manifest.webmanifest`, `sw.js`, `icon-*.png`: add-to-home-screen app and offline shell
 - `dem.js`: terrain maths shared by the page and workers (Terrarium decode, Horn slope/aspect)
 - `tile-worker.js`: renders slope / aspect / rose-match tiles off the main thread
@@ -26,7 +26,7 @@ Then open http://localhost:8080.
 - `snow.js`: snow maths (rain/snow split, Kuchera snow ratio, weighted blends)
 - `tools/calibrate_alta.py`: measures each model's Alta corrections (water by lead day, storm direction, temperature); writes `data/alta_calibration.json`
 - `scorecard.html`, `scorecard.js`: how accurate the forecast has been
-- `worker/index.js`, `wrangler.jsonc`: Cloudflare Worker that serves the site and, each morning, saves the forecast, Atwater readings and Hidden Peak wind (KV), learns the wind correction, and serves `/api/scorecard`, `/api/corrections` and `/api/avalanche` (UAC Salt Lake danger and history from avalanche.org, plus saved Hidden Peak wind)
+- `worker/index.js`, `wrangler.jsonc`: Cloudflare Worker that serves the site and, each morning, saves the forecast, Atwater readings and Hidden Peak wind (KV), learns the wind correction, and serves `/api/scorecard`, `/api/corrections`, `/api/avalanche` (UAC Salt Lake danger and history from avalanche.org, plus saved Hidden Peak wind) and `/api/uphill` (Alta's uphill-travel status, read off alta.com/uphill-travel)
 - `data/`: data snapshots, each with its source recorded inside the file
 
 ## Deploy
@@ -60,7 +60,11 @@ No invented data. Every number comes from one of these sources:
 | Avalanche danger and history | Utah Avalanche Center via the avalanche.org public API (overall rating only; the rose and problems need a UAC API token) |
 | Red-flag thresholds | avalanche.org "Loading / Loading Rate" (12" new snow or 1" water in 24 h); Avalanche Canada glossary, wind transport (25–40 km/h ≈ 15 mph+) |
 | Terrain class (ATES) and runout reach | AutoATES v2.0 method and default thresholds (Toft et al. 2024, github.com/AutoATES/AutoATES-v2.0), simplified; USFS/NLCD Tree Canopy Cover 2025 |
-| Tour endpoints | OpenStreetMap (© OpenStreetMap contributors, ODbL) and USGS GNIS; ids in `tools/lcc_tours.json`. Tour names from onX screenshots and UAC route pages. Lines are computed, not surveyed |
+| Tour endpoints | OpenStreetMap (© OpenStreetMap contributors, ODbL), USGS GNIS, the WBSkiing.com location list, Powder Project; ids in `tools/tours.json`. A few objectives are the highest ground within 250–450 m of a sourced point (labelled so). Lines are computed, not surveyed, except Suicide Chute (OpenStreetMap way 1382646254) |
+| Tour names | Matt's photos: onX Backcountry screenshots, a Reddit comment, White Cloud Concierge's list; plus UAC route pages. Names only; onX lines were never traced |
+| Tour guides | WBSkiing Guide (wbsguide.com) route pages: trailheads, skin tracks, vertical, distance, run difficulty/slope/aspect; Powder Project line stats; UAC route ratings; UAC avalanche reports read one by one (linked on each row). Paraphrased, each note linked to its page |
+| Avalanche deaths near a tour | WBSkiing.com location list, entries of type AvalancheFatality (`data/avalanche_deaths_wbs.json`) |
+| Access status | Alta uphill travel (alta.com, live); Mill Creek road (Salt Lake County 3/15/2026 update, Trails Utah) |
 | Streams (terrain traps) | USGS National Hydrography Dataset, large-scale flowlines |
 | Route-planning rules of thumb | Cody Townsend's route-planning talk: vertical ÷ hourly pace, overhead hazard time, creek-bed traps, low-angle terrain (~20–25°) with nothing above on high-danger days, map slope misses micro-features |
 | Sun position | US Naval Observatory approximate solar coordinates |

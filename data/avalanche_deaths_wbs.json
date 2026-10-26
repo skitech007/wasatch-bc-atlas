@@ -1,0 +1,407 @@
+{
+"source": {
+"name": "WBSkiing.com location list (Iterum, LLC), entries of type AvalancheFatality",
+"url": "https://wbsguide.com/db/WBSdata.xml",
+"site": "https://WBSkiing.com/",
+"retrieved": "2026-10-26",
+"note": "Location names and points only, as listed by WBSkiing. Positions decoded from the list (6 digits of west longitude past 111\u00b0, then 6 digits of latitude past 40\u00b0), checked against WBSkiing pages that print the same places in degrees."
+},
+"places": [
+{
+"name": "Big Willow",
+"area": "Salt Lake Valley",
+"lat": 40.5295,
+"lon": -111.7611
+},
+{
+"name": "Big Willow",
+"area": "Salt Lake Valley",
+"lat": 40.5295,
+"lon": -111.761
+},
+{
+"name": "Brighton Cabin",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60337,
+"lon": -111.58231
+},
+{
+"name": "Brighton Hill",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60704,
+"lon": -111.57622
+},
+{
+"name": "Deso Area",
+"area": "Big Cottonwood Canyon",
+"lat": 40.65881,
+"lon": -111.615
+},
+{
+"name": "Doughnut Falls",
+"area": "Mill Creek Canyon",
+"lat": 40.63161,
+"lon": -111.65431
+},
+{
+"name": "Dutch Draw (fatality #1)",
+"area": "Summit County",
+"lat": 40.65388,
+"lon": -111.59172
+},
+{
+"name": "Dutch Draw (fatality #2)",
+"area": "Summit County",
+"lat": 40.65414,
+"lon": -111.59153
+},
+{
+"name": "Dutch Draw (fatality #3)",
+"area": "Summit County",
+"lat": 40.65352,
+"lon": -111.59239
+},
+{
+"name": "Dutch Draw (fatality #4)",
+"area": "Summit County",
+"lat": 40.6528,
+"lon": -111.59289
+},
+{
+"name": "East Bowl",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6023,
+"lon": -111.6165
+},
+{
+"name": "East Bowl",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6027,
+"lon": -111.6207
+},
+{
+"name": "Figure 8 Hill",
+"area": "Big Cottonwood Canyon",
+"lat": 40.592,
+"lon": -111.60462
+},
+{
+"name": "Flagstaff",
+"area": "Big Cottonwood Canyon",
+"lat": 40.5953,
+"lon": -111.639
+},
+{
+"name": "Gad Chutes",
+"area": "Little Cottonwood Canyon",
+"lat": 40.5664,
+"lon": -111.65476
+},
+{
+"name": "Gad Valley",
+"area": "Little Cottonwood Canyon",
+"lat": 40.56849,
+"lon": -111.65294
+},
+{
+"name": "Gad Valley",
+"area": "Little Cottonwood Canyon",
+"lat": 40.56434,
+"lon": -111.65209
+},
+{
+"name": "Gobblers Knob",
+"area": "Big Cottonwood Canyon",
+"lat": 40.66671,
+"lon": -111.68349
+},
+{
+"name": "Gobblers Knob",
+"area": "Mill Creek Canyon",
+"lat": 40.67142,
+"lon": -111.68668
+},
+{
+"name": "Gobblers Knob",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6613,
+"lon": -111.68239
+},
+{
+"name": "Gobblers Knob",
+"area": "Mill Creek Canyon",
+"lat": 40.6661,
+"lon": -111.69052
+},
+{
+"name": "Gobblers Point South",
+"area": "Summit County",
+"lat": 40.64186,
+"lon": -111.52041
+},
+{
+"name": "Gobblers Saddle",
+"area": "Mill Creek Canyon",
+"lat": 40.66461,
+"lon": -111.69434
+},
+{
+"name": "High Baldy",
+"area": "Little Cottonwood Canyon",
+"lat": 40.57018,
+"lon": -111.64295
+},
+{
+"name": "High Baldy",
+"area": "Little Cottonwood Canyon",
+"lat": 40.5702,
+"lon": -111.64307
+},
+{
+"name": "Kessler Slabs",
+"area": "Big Cottonwood Canyon",
+"lat": 40.62966,
+"lon": -111.66431
+},
+{
+"name": "Lake Desolation",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6561,
+"lon": -111.60225
+},
+{
+"name": "Lane's Leap",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60442,
+"lon": -111.56838
+},
+{
+"name": "Little Superior",
+"area": "Little Cottonwood Canyon",
+"lat": 40.59317,
+"lon": -111.66003
+},
+{
+"name": "Little Willow Canyon",
+"area": "Salt Lake Valley",
+"lat": 40.52803,
+"lon": -111.7971
+},
+{
+"name": "Meadow Chutes",
+"area": "Big Cottonwood Canyon",
+"lat": 40.61978,
+"lon": -111.62274
+},
+{
+"name": "Mineral Fork",
+"area": "Big Cottonwood Canyon",
+"lat": 40.61339,
+"lon": -111.68071
+},
+{
+"name": "Mineral Fork",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6133,
+"lon": -111.68091
+},
+{
+"name": "North Murdock",
+"area": "Lambs Canyon",
+"lat": 40.69619,
+"lon": -111.60349
+},
+{
+"name": "Park City",
+"area": "Summit County",
+"lat": 40.6313,
+"lon": -111.51668
+},
+{
+"name": "Peruvian Ridge",
+"area": "Little Cottonwood Canyon",
+"lat": 40.57266,
+"lon": -111.65142
+},
+{
+"name": "Pharoahs Glen",
+"area": "Mill Creek Canyon",
+"lat": 40.70836,
+"lon": -111.7598
+},
+{
+"name": "Pioneer Peak",
+"area": "Big Cottonwood Canyon",
+"lat": 40.58147,
+"lon": -111.58414
+},
+{
+"name": "Pioneer Peak",
+"area": "Big Cottonwood Canyon",
+"lat": 40.5831,
+"lon": -111.58772
+},
+{
+"name": "Pioneer Peak",
+"area": "Big Cottonwood Canyon",
+"lat": 40.58302,
+"lon": -111.58764
+},
+{
+"name": "Pointy Peak",
+"area": "Summit County",
+"lat": 40.68059,
+"lon": -111.59797
+},
+{
+"name": "Porter Fork",
+"area": "Mill Creek Canyon",
+"lat": 40.6589,
+"lon": -111.7082
+},
+{
+"name": "Red Pine Chute",
+"area": "Summit County",
+"lat": 40.66114,
+"lon": -111.59776
+},
+{
+"name": "Red Rocks",
+"area": "Summit County",
+"lat": 40.66763,
+"lon": -111.60242
+},
+{
+"name": "Rex's",
+"area": "Summit County",
+"lat": 40.6882,
+"lon": -111.59175
+},
+{
+"name": "Roman's",
+"area": "Big Cottonwood Canyon",
+"lat": 40.58582,
+"lon": -111.60561
+},
+{
+"name": "Silver Fox",
+"area": "Little Cottonwood Canyon",
+"lat": 40.56361,
+"lon": -111.64611
+},
+{
+"name": "Silver Lake",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60676,
+"lon": -111.59376
+},
+{
+"name": "Snake Pit (fatality, 1941)",
+"area": "Little Cottonwood Canyon",
+"lat": 40.58663,
+"lon": -111.62686
+},
+{
+"name": "Snake Pit (fatality, 1976)",
+"area": "Little Cottonwood Canyon",
+"lat": 40.58651,
+"lon": -111.62643
+},
+{
+"name": "Square Top (fatalities #1 and #2)",
+"area": "Summit County",
+"lat": 40.6675,
+"lon": -111.59667
+},
+{
+"name": "Square Top (fatality #3)",
+"area": "Summit County",
+"lat": 40.66654,
+"lon": -111.60104
+},
+{
+"name": "Stairs Gulch",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60508,
+"lon": -111.73208
+},
+{
+"name": "Stairs Gulch",
+"area": "Big Cottonwood Canyon",
+"lat": 40.60496,
+"lon": -111.73177
+},
+{
+"name": "Sugarloaf Mountain",
+"area": "Little Cottonwood Canyon",
+"lat": 40.56695,
+"lon": -111.62435
+},
+{
+"name": "Sunset Peak",
+"area": "Big Cottonwood Canyon",
+"lat": 40.57763,
+"lon": -111.59423
+},
+{
+"name": "Sunset Peak",
+"area": "Big Cottonwood Canyon",
+"lat": 40.57769,
+"lon": -111.59403
+},
+{
+"name": "Thirteen Turns",
+"area": "Utah County",
+"lat": 40.55174,
+"lon": -111.64938
+},
+{
+"name": "Tibble Fork",
+"area": "Utah County",
+"lat": 40.48246,
+"lon": -111.6478
+},
+{
+"name": "Twin Lakes Pass",
+"area": "Big Cottonwood Canyon",
+"lat": 40.59369,
+"lon": -111.60839
+},
+{
+"name": "West Couloir",
+"area": "Big Cottonwood Canyon",
+"lat": 40.6247,
+"lon": -111.66972
+},
+{
+"name": "White Snake",
+"area": "Big Cottonwood Canyon",
+"lat": 40.66397,
+"lon": -111.68552
+},
+{
+"name": "Wilson Glades",
+"area": "Mill Creek Canyon",
+"lat": 40.67588,
+"lon": -111.67171
+},
+{
+"name": "Wilson Glades",
+"area": "Mill Creek Canyon",
+"lat": 40.67595,
+"lon": -111.6718
+},
+{
+"name": "Wilson Glades",
+"area": "Mill Creek Canyon",
+"lat": 40.67601,
+"lon": -111.67189
+},
+{
+"name": "Wilson Glades",
+"area": "Mill Creek Canyon",
+"lat": 40.67788,
+"lon": -111.6701
+}
+]
+}

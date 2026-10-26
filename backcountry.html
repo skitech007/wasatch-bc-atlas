@@ -34,9 +34,15 @@
 
     <!-- ================= Tours ================= -->
     <section id="tab-tours" class="tab" role="tabpanel" aria-labelledby="t-tours">
-      <h3>Little Cottonwood tours <span class="muted" id="tour-count"></span></h3>
-      <p class="hint">Lines are <b>computed rough tracks</b>, not surveyed routes. They follow the lowest-angle way up the terrain between the trailhead and the objective, the way Cody Townsend sketches a route to gauge his day. Tap a tour to load it into Plan.</p>
+      <h3>Tours <span class="muted" id="tour-count"></span></h3>
+      <p class="hint">Lines are <b>computed rough tracks</b>, not surveyed routes. They follow the lowest-angle way up the terrain between the trailhead and the objective, the way Cody Townsend sketches a route to gauge his day. Tap a tour for its guide: start, skin track, runs, slide history and sources.</p>
       <ul id="tour-list" class="tour-list"><li class="muted">Loading tours…</li></ul>
+
+      <details>
+        <summary>From your photos</summary>
+        <p class="hint">Every route name in the onX screenshots, the Reddit comment and the White Cloud list, and the tour it's in.</p>
+        <div id="photo-index" class="photo-index"></div>
+      </details>
 
       <details>
         <summary>UAC rated routes <span class="muted" id="uac-count"></span></summary>
@@ -72,9 +78,11 @@
         <input type="time" id="start-time" value="07:00">
       </div>
       <div id="route-name" class="route-name" hidden></div>
+      <button id="guide-jump" class="linkish guide-jump" hidden>Tour guide: start, skin track, runs, slides ↓</button>
       <div id="route-stats" class="stats"></div>
       <div id="profile" class="profile"></div>
       <div id="route-checks" class="checks"></div>
+      <div id="tour-guide" class="guide"></div>
 
       <details class="checklist">
         <summary>Before you go <span class="muted">· Cody Townsend's routine</span></summary>
