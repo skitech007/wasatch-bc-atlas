@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11161c">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Backcountry · Wasatch BC Atlas</title>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="lib/maplibre-gl-5.24.0.css">
   <link rel="icon" href="badge.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -15,6 +15,7 @@
 </head>
 <body class="bc">
   <div id="map"></div>
+  <div id="map-error" class="map-error" role="alert" hidden></div>
 
   <header class="bc-top">
     <a href="./" class="top-btn" aria-label="Home">‹</a>
@@ -210,7 +211,7 @@
 
   <div id="readout" class="readout" aria-live="off"></div>
 
-  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="lib/maplibre-gl-5.24.0.js"></script>
   <script src="dem.js"></script>
   <script src="snow.js"></script>
   <script src="forecast-data.js"></script>

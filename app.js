@@ -13,6 +13,21 @@ const store = {
   set(k, v) { try { localStorage.setItem('wbca.' + k, JSON.stringify(v)); } catch { /* ignore */ } },
 };
 
+/* ---------- when the map can't draw, say why instead of leaving a dark screen ---------- */
+function mapError(html) {
+  const el = document.getElementById('map-error');
+  el.innerHTML = html + '<button type="button" onclick="location.reload()">Reload</button>';
+  el.hidden = false;
+}
+const WEBGL_HELP = `<b>The map can't draw: 3D graphics (WebGL) are switched off in this browser for this page.</b>
+  <p>Chrome switches WebGL off for a site after a graphics crash; quitting and reopening Chrome clears that.
+  If the map is still blank, turn on Settings → System → <i>Use graphics acceleration when available</i> and relaunch.
+  <code>chrome://gpu</code> should list WebGL as “Hardware accelerated”.</p>`;
+if (typeof maplibregl === 'undefined') {
+  mapError('<b>The map library didn’t load.</b><p>You may be offline, or an extension or network filter blocked it.</p>');
+  throw new Error('MapLibre did not load');
+}
+
 /* ---------- analysis tiles: wbca://mode/z/x/y?k=mask&s=minSlope, rendered in workers ---------- */
 const workers = Array.from({ length: Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) - 1)) }, () => new Worker('tile-worker.js'));
 const pending = new Map();
@@ -119,7 +134,8 @@ const BASEMAPS = {
   imagery: `${USGS}/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}`,
 };
 
-const map = new maplibregl.Map({
+let map;
+try { map = new maplibregl.Map({
   container: 'map',
   center: store.get('center', [-111.655, 40.595]),
   zoom: store.get('zoom', 12.3),
@@ -143,7 +159,13 @@ const map = new maplibregl.Map({
     ],
     sky: { 'sky-color': '#9cc3e6', 'horizon-color': '#dfe9f2', 'fog-color': '#dfe9f2', 'sky-horizon-blend': 0.5, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.85 },
   },
-});
+}); } catch (e) {
+  mapError(/webgl/i.test(e.message) ? WEBGL_HELP : `<b>The map couldn’t start.</b><p>${esc(e.message)}</p>`);
+  throw e;
+}
+// The graphics card can drop the map mid-session (out of memory, a GPU reset). MapLibre 5.24's own
+// recovery throws and comes back without the slope shading, so ask for a reload instead.
+map.on('webglcontextlost', () => mapError('<b>The graphics card dropped the map.</b><p>Reload to redraw it. Your route, tour, pins and view are kept.</p>'));
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');

@@ -21,6 +21,18 @@
 .avy-btn b { padding: 3px 8px; border-radius: 6px; background: var(--btn); font-size: 12px; }
 .avy-btn-label { font-weight: 600; }
 
+/* ---------- map couldn't draw ---------- */
+.map-error {
+  position: absolute; z-index: 2; top: 22%; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 32px));
+  box-sizing: border-box; padding: 14px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
+  font-size: 14px; line-height: 1.45;
+}
+.map-error[hidden] { display: none; }
+.map-error p { margin: 8px 0 12px; color: var(--muted, #9aa7b4); }
+.map-error code { font-size: 13px; }
+.map-error button { padding: 7px 14px; border-radius: 8px; font-weight: 600; background: var(--accent); color: var(--accent-ink); border: 0; cursor: pointer; }
+@media (min-width: 900px) { .map-error { left: calc(50% + 191px); } }
+
 /* ---------- sheet / panel ---------- */
 .sheet {
   position: absolute; z-index: 3; background: var(--panel); border: 1px solid var(--line);

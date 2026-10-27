@@ -1,9 +1,9 @@
 // Offline shell: the app's own pages and scripts come from the network when there is one and from
 // this cache when there isn't. /api (live forecasts and avalanche data) is never cached here.
-// Map tiles, map fonts and the map library go in a second cache, cache-first, so a tour viewed (or
+// Map tiles and map fonts go in a second cache, cache-first, so a tour viewed (or
 // saved with "Save for offline") at home still draws with no signal on the skin track. The app's own
 // terrain-class tiles (/tiles/) stay in the shell cache, so a rebuild replaces them.
-const CACHE = 'atlas-shell-v3';
+const CACHE = 'atlas-shell-v4';
 const TILES = 'atlas-tiles-v1';
 const TILE_MAX = 12000;          // entries kept; the oldest go first past this
 const SHELL = [
@@ -11,16 +11,12 @@ const SHELL = [
   'risk.js', 'sun.js', 'avalanche.js', 'forecast.html', 'forecast.css', 'forecast.js', 'forecast-data.js', 'snow.js',
   'scorecard.html', 'scorecard.js', 'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png',
   'data/alta_calibration.json', 'data/avalanche_paths.geojson', 'data/uac_zones.geojson', 'data/uac_routes.json',
-  'data/tours.geojson', 'data/nhd_streams.geojson',
+  'data/tours.geojson', 'data/nhd_streams.geojson', 'lib/maplibre-gl-5.24.0.js', 'lib/maplibre-gl-5.24.0.css',
 ];
-const LIB = ['https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js', 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css'];
-const isTile = u => u.hostname === 'basemap.nationalmap.gov' || u.hostname === 'demotiles.maplibre.org' || u.hostname === 'unpkg.com'
+const isTile = u => u.hostname === 'basemap.nationalmap.gov' || u.hostname === 'demotiles.maplibre.org'
   || (u.hostname === 's3.amazonaws.com' && u.pathname.startsWith('/elevation-tiles-prod/'));
 
-self.addEventListener('install', e => e.waitUntil(Promise.all([
-  caches.open(CACHE).then(c => c.addAll(SHELL)),
-  caches.open(TILES).then(c => c.addAll(LIB)).catch(() => {}),
-]).then(() => self.skipWaiting())));
+self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== TILES).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 

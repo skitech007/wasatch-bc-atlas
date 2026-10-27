@@ -21,6 +21,7 @@ Then open http://localhost:8080.
 - `manifest.webmanifest`, `sw.js`, `icon-*.png`: add-to-home-screen app and offline shell
 - `dem.js`: terrain maths shared by the page and workers (Terrarium decode, Horn slope/aspect)
 - `tile-worker.js`: renders slope / aspect / rose-match tiles off the main thread
+- `lib/`: MapLibre GL JS 5.24.0, unchanged from the npm package (BSD-3 licence alongside), served with the app so the map doesn't depend on a CDN
 - `forecast.html`, `forecast.css`, `forecast.js`: the Alta snow forecast page (summary, day/night, hourly, models, observed, NWS discussion)
 - `forecast-data.js`: fetches and blends the forecast data; shared by the forecast page and the map panel
 - `snow.js`: snow maths (rain/snow split, Kuchera snow ratio, weighted blends)
