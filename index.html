@@ -3,54 +3,83 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11161c">
+  <meta name="theme-color" content="#0b0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Alta Snow</title>
+  <meta name="apple-mobile-web-app-title" content="BC Atlas">
+  <title>Wasatch BC Atlas</title>
   <link rel="icon" href="badge.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="home.css">
 </head>
-<body class="home">
-  <header class="home-head">
-    <img src="badge.svg" alt="" class="badge">
-    <div class="title">
-      <h1>Alta</h1>
-      <p id="status" class="sub">Loading forecast…</p>
+<body class="page home">
+  <header class="topbar">
+    <div class="topbar-title">
+      <img src="badge.svg" alt="" class="brand-mark">
+      <div><h1>Wasatch BC Atlas</h1><p class="sub">Cottonwood Canyons</p></div>
     </div>
-    <a id="avy-chip" class="avy-chip" href="backcountry.html#avalanche" hidden></a>
+    <div class="topbar-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="Glare mode"></button>
+      <button class="icon-btn" id="refresh" aria-label="Refresh forecast"><i data-icon="refresh"></i></button>
+    </div>
   </header>
 
-  <section class="snow" aria-labelledby="snow-h">
-    <h2 id="snow-h" class="sr-only">Snow forecast, next 15 days</h2>
-    <div class="totals" id="totals"></div>
-    <div class="chart" id="chart" role="img" aria-label="Daily snow forecast for Alta, next 15 days"></div>
-    <div class="note" id="legend"></div>
-    <p class="note">Each day is 6 pm the night before to 6 pm. Tap <a href="forecast.html">Alta</a> for the likely range and hour by hour.</p>
-  </section>
-
-  <section class="cards">
-    <div class="mini-card" id="storm"><h2>Next storm</h2><p>Loading…</p></div>
-    <div class="mini-card" id="today"><h2>Today at Alta</h2><p>Loading…</p></div>
-  </section>
-
-  <nav class="doors">
-    <a href="backcountry.html" class="door bc">
-      <span class="door-icon" aria-hidden="true">⛰️</span>
-      <span><b>Backcountry</b><small>3D map · tours · avalanche risk</small></span>
+  <main class="page-main">
+    <a id="avy" class="avy-row" href="backcountry.html#avalanche" aria-label="Avalanche danger, Salt Lake zone">
+      <span class="avy-dot" aria-hidden="true"></span>
+      <span class="avy-text"><span class="eyebrow">Avalanche · UAC Salt Lake</span><b id="avy-name">Checking…</b></span>
+      <i data-icon="chev" class="chev"></i>
     </a>
-    <a href="resorts.html" class="door resort">
-      <span class="door-icon" aria-hidden="true">🚡</span>
-      <span><b>Resorts</b><small>Alta · Snowbird · Brighton · Solitude</small></span>
-    </a>
-  </nav>
 
-  <footer class="home-foot">
-    <a href="scorecard.html">Forecast scorecard</a>
-    <button id="refresh" class="linkish">Refresh</button>
-  </footer>
+    <section class="card snow" aria-labelledby="snow-h">
+      <div class="card-head">
+        <h2 id="snow-h">Alta · next 15 days</h2>
+        <span class="muted" id="status">Loading…</span>
+      </div>
+      <div class="stats-row" id="totals">
+        <div class="stat-cell dim"><b class="skeleton sk-line" style="width:36px">&nbsp;</b><span>Last 24 h</span></div>
+        <div class="stat-cell"><b class="skeleton sk-line" style="width:36px">&nbsp;</b><span>Next 5 days</span></div>
+        <div class="stat-cell"><b class="skeleton sk-line" style="width:36px">&nbsp;</b><span>Days 6–10</span></div>
+        <div class="stat-cell"><b class="skeleton sk-line" style="width:36px">&nbsp;</b><span>Days 11–15</span></div>
+      </div>
+      <div class="chart" id="chart" role="img" aria-label="Daily snow forecast for Alta, next 15 days"><div class="skeleton sk-block"></div></div>
+      <div class="chart-foot">
+        <div id="legend"></div>
+        <a href="forecast.html?r=alta" class="more">Full forecast<i data-icon="chev"></i></a>
+      </div>
+      <div id="snow-error"></div>
+    </section>
+
+    <section class="cards">
+      <div class="mini-card" id="storm"><h2 class="eyebrow">Next storm</h2><div class="skeleton sk-line" style="width:70%"></div><div class="skeleton sk-line"></div></div>
+      <div class="mini-card" id="today"><h2 class="eyebrow">Today at Alta</h2><div class="skeleton sk-line" style="width:60%"></div><div class="skeleton sk-line"></div></div>
+    </section>
+
+    <nav class="doors" aria-label="Sections">
+      <a href="backcountry.html" class="door bc">
+        <span class="door-icon"><i data-icon="mountain"></i></span>
+        <span class="door-text"><b>Backcountry</b><small>3D map · tours · avalanche risk</small></span>
+        <i data-icon="chev" class="chev"></i>
+      </a>
+      <a href="resorts.html" class="door resort">
+        <span class="door-icon"><i data-icon="lift"></i></span>
+        <span class="door-text"><b>Resorts</b><small>Alta · Snowbird · Brighton · Solitude</small></span>
+        <i data-icon="chev" class="chev"></i>
+      </a>
+      <a href="scorecard.html" class="door score">
+        <span class="door-icon"><i data-icon="chart"></i></span>
+        <span class="door-text"><b>Scorecard</b><small>How accurate the Alta forecast has been</small></span>
+        <i data-icon="chev" class="chev"></i>
+      </a>
+    </nav>
+
+    <footer class="foot">
+      <p>Each day runs 6 pm the night before to 6 pm. Last 24 h is the rise in snow depth at the Alta SNOTEL. Snow is a blend of the NBM, ECMWF, GFS, GEM and NWS forecasts; tap Full forecast to see each model and how the blend is made.</p>
+    </footer>
+  </main>
 
   <script src="snow.js"></script>
   <script src="forecast-data.js"></script>

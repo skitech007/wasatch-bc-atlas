@@ -10,98 +10,92 @@ const isPowder = v => v != null && v >= POWDER_IN - 0.5;
 const ft = v => Math.round(v).toLocaleString('en-US');
 const RESORT_ID = new URLSearchParams(location.search).get('r') || 'alta';
 let R = null;   // this page's resort, from data/resorts.json
-function icon({ snow, water, frac, cc, isDay }) {
-  if (snow >= 0.1 && frac >= 0.5) return ['🌨️', 'Snow'];
-  if (water >= 0.01 && frac < 0.5) return ['🌧️', 'Rain'];
-  if (water >= 0.01) return ['🌨️', 'Light snow'];
-  if (cc == null) return ['', ''];
-  if (cc < 25) return isDay ? ['☀️', 'Clear'] : ['🌙', 'Clear'];
-  if (cc < 60) return isDay ? ['🌤️', 'Partly cloudy'] : ['☁️', 'Partly cloudy'];
-  return ['☁️', 'Cloudy'];
-}
 const wind = (dir, spd) => spd == null ? '–' : `${SNOW.compass(dir)}${Math.round(spd)}`;
 // Colour ramp for precip chance and snow cells (one hue, light to dark)
 const chanceBg = c => c == null || c < 5 ? '' : `background: color-mix(in oklab, var(--s1) ${Math.round(c * 0.55)}%, transparent)`;
 
 // ---------- renderers ----------
 function renderSummary(b) {
-  const groups = [[0, 5, 'Next 1–5 days'], [5, 10, 'Next 6–10 days'], [10, 15, 'Next 11–15 days']];
+  const groups = [[0, 5, 'Next 1–5 days'], [5, 10, 'Days 6–10'], [10, 15, 'Days 11–15']];
   const max = Math.max(4, ...b.days.map(d => d.snow || 0));
   $('summary').innerHTML = groups.map(([a, z, label]) => {
     const ds = b.days.slice(a, z);
     const tot = ds.reduce((s, d) => s + (d.snow || 0), 0);
     const anyMissing = ds.some(d => d.snow == null);
+    // The 6"+ odds sit under their own five bars, so each number lines up with its day
+    const odds = ds.map(d => {
+      const p = d.ens?.pPowder;
+      return `<span class="odd${p >= 40 ? ' hot' : ''}" style="${chanceBg(p)}" data-tip="${esc(`${dow(d.date)} ${dom(d.date)}: ${p == null ? 'no ensemble' : Math.round(p) + '% of ' + d.ens.n + ' ensemble runs give ' + POWDER_IN + '"+'}`)}">${p == null ? '–' : Math.round(p)}</span>`;
+    }).join('');
     return `<section class="sgroup">
-      <header><span>${label}</span><b>${Math.round(tot)}"${anyMissing ? '<sup title="Some models end before these days">*</sup>' : ''}</b></header>
+      <header><span>${label}</span><b class="${tot >= 12 ? 'pow' : ''}">${Math.round(tot)}"${anyMissing ? '<sup title="Some models end before these days">*</sup>' : ''}</b></header>
       ${snowBars(ds, { max, marks: [], todayFirst: a === 0, tipAttr: 'data-tip' })}
+      <div class="odds-row"><span class="odds-cap">% chance of ${POWDER_IN}"+</span>${odds}</div>
     </section>`;
   }).join('');
   $('legend').innerHTML = snowLegend();
-  // Powder odds strip
-  $('odds').innerHTML = b.days.map(d => {
-    const p = d.ens?.pPowder;
-    return `<div class="odd" style="${chanceBg(p)}" data-tip="${esc(`${dow(d.date)} ${dom(d.date)}: ${p == null ? 'no ensemble' : Math.round(p) + '% of ' + d.ens.n + ' ensemble runs give ' + POWDER_IN + '"+'}`)}">
-      <span>${p == null ? '–' : Math.round(p)}</span></div>`;
-  }).join('');
 }
 
+// Day & night as a list: snow block, temperature and weather on the first line, then snow ratio,
+// snow level, precip chance and wind under it. On a wide screen the second line becomes columns.
 function renderPeriods(b) {
-  const rows = b.periods.map(p => {
-    const [ic, icTitle] = icon(p);
-    const rangeTxt = rangeText(p.ens, p.snow);
-    const blended = p.snow >= 0.05 ? `${p.snow.toFixed(1)}"` : '';
-    // Under half an inch likely, the block stays plain text so the snowy periods stand out
-    const cls = (likelyRange(p.ens, p.snow)?.[1] ?? p.snow) >= 0.5 ? snowClass(p) : 'none';
-    return `<tr class="${p.isDay ? 'day' : 'night'}">
-      ${p.isDay || p === b.periods[0] ? `<th rowspan="${p.isDay && b.periods[b.periods.indexOf(p) + 1] ? 2 : 1}" class="pday">${dow(p.date)}<small>${dom(p.date)}</small></th>` : ''}
-      <td class="pn">${p.isDay ? 'Day' : 'Night'}</td>
-      <td class="snowcell"><span class="snow-chip t-${cls}" title="${PTYPE_NAME[precipType(p)]}">${rangeTxt}</span><small>${blended}</small></td>
-      <td class="num">${r0(p.tempF)}°</td>
-      <td class="ic" title="${icTitle}">${ic}</td>
-      <td class="num">${p.slr ? Math.round(p.slr) + ':1' : '--'}</td>
-      <td class="num">${p.snowLevel != null ? (Math.round(p.snowLevel / 100) * 100).toLocaleString() :`<span class="muted" title="Freezing level (models); NWS snow level runs out after ~7 days">${p.fz != null ? 'FzL ' + (Math.round(p.fz / 100) * 100).toLocaleString() : '–'}</span>`}</td>
-      <td class="num" style="${chanceBg(p.chance)}">${p.chance == null ? '–' : Math.round(p.chance) + '%'}</td>
-      <td class="num">${in2(p.water)}"</td>
-      <td class="num">${r0(p.app)}°</td>
-      <td class="num">${r0(p.rh)}%</td>
-      <td class="num">${wind(p.wd, p.ws)}</td>
-      <td class="num">${r0(p.wg)}</td>
-      <td class="num">${r0(p.cc)}%</td>
-    </tr>`;
-  });
-  $('periods').innerHTML = `<table class="ptable">
-    <thead><tr><th></th><th></th><th>12-hr snow <small>likely range · blend</small></th><th>Temp</th><th></th><th>Snow ratio</th>
-    <th>Snow level ft</th><th>Precip chance</th><th>Precip</th><th>Feels like</th><th>Humidity</th><th>Wind mph</th><th>Gust</th><th>Cloud</th></tr></thead>
-    <tbody>${rows.join('')}</tbody></table>`;
+  const byDate = [];
+  b.periods.forEach(p => { const g = byDate.at(-1); if (g && g.date === p.date) g.ps.push(p); else byDate.push({ date: p.date, ps: [p] }); });
+  const lvl = p => p.snowLevel != null ? `${(Math.round(p.snowLevel / 100) * 100).toLocaleString()}′`
+    : p.fz != null ? `<span title="Freezing level (models); NWS snow level runs out after ~7 days">FzL ${(Math.round(p.fz / 100) * 100).toLocaleString()}′</span>` : '–';
+  const row = p => {
+    const type = precipType(p);
+    const likelyHi = likelyRange(p.ens, p.snow)?.[1] ?? p.snow;
+    // A rain period shows its rain, not a snow range
+    const chip = type === 'rain' && (p.water || 0) >= 0.01
+      ? `<span class="snow-chip t-rain">Rain</span><small>${in2(p.water)}" water</small>`
+      : `<span class="snow-chip t-${likelyHi >= 0.5 ? snowClass(p) : 'none'}" title="${PTYPE_NAME[type]}">${rangeText(p.ens, p.snow)}</span>${p.snow >= 0.05 ? `<small>${p.snow.toFixed(1)}" likely</small>` : ''}`;
+    return `<div class="prow ${p.isDay ? 'day' : 'night'}">
+      <span class="pn">${p.isDay ? 'Day' : 'Night'}</span>
+      <span class="pchip">${chip}</span>
+      <span class="ptemp">${r0(p.tempF)}°</span>
+      ${wxIcon(p) || '<span class="wx"></span>'}
+      <span class="pmeta">
+        <span><span class="lbl">Ratio </span><b>${p.slr ? Math.round(p.slr) + ':1' : '–'}</b></span>
+        <span><span class="lbl">Snow lvl </span><b>${lvl(p)}</b></span>
+        <span><span class="lbl">Precip </span><b>${p.chance == null ? '–' : Math.round(p.chance) + '%'}</b></span>
+        <span><span class="lbl">Wind </span><b>${wind(p.wd, p.ws)}</b>${p.wg ? ` <span class="lbl">g</span><span class="lbl">${r0(p.wg)}</span>` : ''}</span>
+        <span class="x"><b>${r0(p.wg)}</b></span>
+        <span class="x"><b>${r0(p.app)}°</b></span>
+        <span class="x"><b>${in2(p.water)}"</b></span>
+      </span>
+    </div>`;
+  };
+  $('periods').innerHTML = `<div class="phead"><span></span><span>Snow · likely range</span><span>Temp</span><span></span><span>Ratio</span><span>Snow level</span><span>Precip</span><span>Wind mph</span><span>Gust</span><span>Feels</span><span>Water</span></div>
+    <div class="plist">${byDate.map(g => `<div class="pday-group"><div class="pday-label">${g.date === b.today ? 'Today' : dow(g.date)}<small>${new Date(g.date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</small></div><div>${g.ps.map(row).join('')}</div></div>`).join('')}</div>`;
 }
 
+// Hourly: one day at a time (chips pick the day), hours down the page so nothing scrolls sideways
+let hourlyDay = null;
 function renderHourly(b) {
-  const hs = b.hours;
-  const rows = [
-    ['Precip chance', h => h.chance == null ? '–' : Math.round(h.chance) + '%', h => chanceBg(h.chance)],
-    ['Precipitation <small>in</small>', h => in2(h.water)],
-    ['Snowfall <small>in</small>', h => h.snow == null ? '–' : h.snow.toFixed(1), h => h.snow >= 0.05 ? `background: color-mix(in oklab, var(--s1) ${Math.min(70, Math.round(h.snow * 60))}%, transparent)` : ''],
-    ['Snow ratio', h => h.slr ? Math.round(h.slr) + ':1' : '--'],
-    ['Snow level <small>ft</small>', h => h.snowLevel == null ? '<span class="muted">–</span>' : (Math.round(h.snowLevel / 100) * 100).toLocaleString()],
-    ['Freezing level <small>ft</small>', h => h.fz == null ? '–' : (Math.round(h.fz / 100) * 100).toLocaleString()],
-    ['Weather', h => { const hr = hourOf(h.t); const [i, t] = icon({ ...h, isDay: hr >= 7 && hr < 19 }); return `<span title="${t}">${i}</span>`; }],
-    ['Temperature <small>°F</small>', h => r0(h.tempF)],
-    ['Feels like <small>°F</small>', h => r0(h.app)],
-    ['Humidity <small>%</small>', h => r0(h.rh)],
-    ['Wind <small>mph</small>', h => wind(h.wd, h.ws)],
-    ['Gust <small>mph</small>', h => r0(h.wg)],
-    ['Cloud cover <small>%</small>', h => r0(h.cc)],
-  ];
-  const head = hs.map(h => {
-    const hr = hourOf(h.t);
-    return `<th class="${hr === 0 ? 'newday' : ''} ${h.t === b.nowKey ? 'now' : ''}" id="${hr === 0 ? 'h-' + dateOf(h.t) : ''}">${hourLabel(hr)}<small>${dow(dateOf(h.t))}</small></th>`;
-  }).join('');
-  const body = rows.map(([label, f, style]) => `<tr><th>${label}</th>${hs.map(h =>
-    `<td class="${hourOf(h.t) === 0 ? 'newday' : ''}" style="${style ? style(h) : ''}">${f(h)}</td>`).join('')}</tr>`).join('');
-  $('hourly').innerHTML = `<table class="htable"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table>`;
-  $('jump').innerHTML = b.days.map(d => `<button data-day="${d.date}">${d.date === b.today ? 'Today' : dow(d.date) + ' ' + dom(d.date)}</button>`).join('');
-  const now = $('hourly').querySelector('th.now');
-  if (now) $('hourly').scrollLeft = now.offsetLeft - 160;
+  const days = b.days.map(d => d.date);
+  if (!hourlyDay || !days.includes(hourlyDay)) hourlyDay = b.today;
+  $('jump').innerHTML = days.map(d => `<button role="tab" data-day="${d}" aria-selected="${d === hourlyDay}">${d === b.today ? 'Today' : dow(d) + ' ' + dom(d)}</button>`).join('');
+  const hs = b.hours.filter(h => dateOf(h.t) === hourlyDay);
+  const snowBg = h => h.snow >= 0.05 ? `background: color-mix(in oklab, var(--c-snow) ${Math.min(75, 20 + Math.round(h.snow * 60))}%, transparent)` : '';
+  $('hourly').innerHTML = `<div class="hhead"><span>Time</span><span></span><span>Temp</span><span>Snow"</span><span>Prec</span><span>Wind mph</span><span class="sl">Snow lvl</span><span class="x">Feels</span><span class="x">Cloud</span><span class="x">Ratio</span></div>
+    <div class="hlist">${hs.map(h => {
+      const hr = hourOf(h.t), now = h.t === b.nowKey;
+      return `<div class="hrow${now ? ' now' : ''}"${now ? ' id="h-now"' : ''}>
+        <span class="t">${hourLabel(hr)}${now ? '<small>Now</small>' : ''}</span>
+        ${wxIcon({ ...h, isDay: hr >= 7 && hr < 19 }) || '<span></span>'}
+        <span class="tmp">${r0(h.tempF)}°</span>
+        <span class="sn${h.snow >= 0.05 ? '' : ' zero'}" style="${snowBg(h)}">${h.snow == null ? '–' : h.snow.toFixed(1)}</span>
+        <span class="pc">${h.chance == null ? '–' : Math.round(h.chance) + '%'}</span>
+        <span class="wd"><b>${wind(h.wd, h.ws)}</b>${h.wg ? ` g${r0(h.wg)}` : ''}</span>
+        <span class="sl">${h.snowLevel != null ? (Math.round(h.snowLevel / 100) * 100).toLocaleString() : h.fz != null ? 'FzL ' + (Math.round(h.fz / 100) * 100).toLocaleString() : '–'}</span>
+        <span class="x">${r0(h.app)}°</span>
+        <span class="x">${r0(h.cc)}%</span>
+        <span class="x">${h.slr ? Math.round(h.slr) + ':1' : '–'}</span>
+      </div>`;
+    }).join('') || '<p class="muted">No hourly data for this day.</p>'}</div>`;
+  $('hourly-day').textContent = hourlyDay === b.today ? 'Today' : `${dow(hourlyDay)} ${dom(hourlyDay)}`;
+  $('jump').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 
 function renderModels(b) {
@@ -296,18 +290,16 @@ const LCC = r => r.canyon === 'Little Cottonwood';
 function renderHeader() {
   document.title = `${R.name} Snow Forecast`;
   $('rname').textContent = R.name;
-  $('rpoint').textContent = `· forecast point ${ft(R.point.ft)} ft`;
   const alta = R.id === 'alta';
-  $('badge').innerHTML = alta ? '<img src="badge.svg" alt="">' : `<span class="mono ${LCC(R) ? 'lcc' : 'bcc'}">${monogram(R)}</span>`;
-  $('alta-logo').hidden = !alta;
-  $('score-link').hidden = !alta;
+  // Monograms for every resort: resort logos are trademarks
+  $('badge').innerHTML = `<span class="mono ${LCC(R) ? 'lcc' : 'bcc'}">${monogram(R)}</span>`;
   $('obs-where').textContent = `· ${R.snotel.name} SNOTEL${R.snotel.km < 1 ? `, ${R.name}` : `, ${R.snotel.km} km away`}`;
-  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. The likely range for each 12 hours is in Day &amp; night below; hover or tap a bar for the day's range and odds.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
+  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. Each day runs 6 pm the night before to 6 pm. The likely range for each 12 hours is in Day &amp; night; tap a bar for the day's range and odds.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
   $('models-hint').textContent = `Running total of snow at ${R.name} by model, after each model's ${R.name} correction. The grey band covers the middle 80% of the 82 ensemble runs' running totals.`;
   const today = localKey(new Date()).slice(0, 10);
-  $('opening').textContent = R.opening && R.opening > today
-    ? `Opens ${new Date(R.opening + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} (Ski Utah)`
-    : R.opening ? '' : 'Opening day not announced yet (Ski Utah)';
+  $('opening').innerHTML = R.opening && R.opening > today
+    ? `<span class="pill warn" title="Opening day from Ski Utah">Opens ${new Date(R.opening + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>`
+    : R.opening ? '' : '<span class="pill" title="Ski Utah">Opening TBA</span>';
   renderCams();
 }
 
@@ -316,9 +308,9 @@ function renderCams() {
   const c = R.cams;
   const yt = c.youtube.map(v => `<button class="cam" data-yt="${esc(v.id)}" title="Play ${esc(v.name)} live">
       <img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault_live.jpg" alt="" loading="lazy">
-      <span class="cam-play" aria-hidden="true">▶</span><span class="cam-name">${esc(v.name)}</span></button>`).join('');
+      <span class="cam-play" aria-hidden="true">${ICON.play}</span><span class="cam-name">${esc(v.name)}</span></button>`).join('');
   $('cams').innerHTML = `${yt ? `<div class="cam-grid">${yt}</div>` : ''}
-    <a class="cam-link" href="${esc(c.page)}" target="_blank" rel="noopener"><b>${yt ? `More on ${esc(R.name)}'s site ↗` : `Open ${esc(R.name)}'s live cams ↗`}</b><small>${esc(c.label)}</small></a>
+    <a class="cam-link" href="${esc(c.page)}" target="_blank" rel="noopener"><span><b>${yt ? `More on ${esc(R.name)}'s site` : `Open ${esc(R.name)}'s live cams`}</b><small>${esc(c.label)}</small></span>${ICON.external}</a>
     <p class="hint">${yt ? `${esc(R.name)} streams these on YouTube; they play here in YouTube's own player.`
       : `${esc(R.name)} publishes its cams as pictures on its own site rather than as a stream other apps can show, so this opens their page.`}</p>`;
 }
@@ -355,6 +347,7 @@ document.addEventListener('focusout', hideTip);
 // ---------- boot ----------
 async function load(force) {
   $('status').textContent = 'Loading forecast…';
+  $('refresh').classList.add('spin');
   try {
     if (!R) { R = await resortById(RESORT_ID); renderHeader(); }
     const res = await fetchAll(force, R.id);
@@ -363,18 +356,24 @@ async function load(force) {
     renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
     const errs = Object.entries(res.errors);
     const when = new Date(res.at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-    $('status').innerHTML = `Updated ${when}` + (errs.length ? ` · <span class="warn">couldn't reach: ${errs.map(([k]) => k).join(', ')}</span>` : '');
+    const down = errs.filter(([k]) => k !== 'corrections');
+    $('status').innerHTML = `${ft(R.point.ft)} ft · updated ${when}` + (down.length ? ` · <span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>` : '');
+    $('alerts').insertAdjacentHTML('beforeend', down.length ? `<div class="alert"><b>Some sources didn't answer:</b> ${esc(down.map(([k]) => k).join(', '))}. The rest of the blend is shown.</div>` : '');
     window.resortForecast = b; // handy for poking at numbers in the console
   } catch (e) {
-    $('status').innerHTML = `<span class="warn">Forecast failed to load: ${esc(e.message)}</span>`;
+    const off = navigator.onLine === false;
+    $('status').innerHTML = `<span class="warn">${off ? 'No signal' : 'Forecast unavailable'}</span>`;
+    $('summary').innerHTML = `<div class="banner ${off ? 'info' : 'danger'}">${ICON[off ? 'wifiOff' : 'alert']}<div><b>${off ? 'No signal' : 'Forecast failed to load'}</b>${off ? 'This forecast loads when you are back in coverage.' : esc(e.message)}</div></div>`;
+    ['periods', 'hourly'].forEach(id => { $(id).innerHTML = ''; });
     console.error(e);
+  } finally {
+    $('refresh').classList.remove('spin');
   }
 }
 
 $('refresh').addEventListener('click', () => load(true));
 $('jump').addEventListener('click', ev => {
-  const d = ev.target.dataset.day; if (!d) return;
-  const th = $(`h-${d}`) || $('hourly').querySelector('th.now');
-  if (th) $('hourly').scrollTo({ left: th.offsetLeft - 160, behavior: 'smooth' });
+  const d = ev.target.closest('[data-day]')?.dataset.day; if (!d || !window.resortForecast) return;
+  hourlyDay = d; renderHourly(window.resortForecast);
 });
 load(false);

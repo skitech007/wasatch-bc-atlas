@@ -170,6 +170,58 @@ map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-
 map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
 
+/* ---------- tour styling ---------- */
+const TOUR_COLOR = '#2ee6ff';
+// Chevron and objective pin, drawn once on a canvas so they need no icon sprite (works offline)
+function addTourImages() {
+  const px = 2, mk = (w, h, draw) => {
+    const c = document.createElement('canvas'); c.width = w * px; c.height = h * px;
+    const g = c.getContext('2d'); g.scale(px, px); draw(g);
+    return g.getImageData(0, 0, w * px, h * px);
+  };
+  if (!map.hasImage('tour-chev')) map.addImage('tour-chev', mk(18, 18, g => {
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    const path = () => { g.beginPath(); g.moveTo(6, 4); g.lineTo(12, 9); g.lineTo(6, 14); };
+    g.strokeStyle = '#06121c'; g.lineWidth = 5.5; path(); g.stroke();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 2.4; path(); g.stroke();
+  }), { pixelRatio: px });
+  if (!map.hasImage('tour-pin')) map.addImage('tour-pin', mk(34, 42, g => {
+    g.beginPath(); g.arc(17, 16, 14, Math.PI * 0.82, Math.PI * 2.18); g.lineTo(17, 40); g.closePath();
+    g.fillStyle = '#06121c'; g.fill();
+    g.beginPath(); g.arc(17, 16, 11.5, 0, Math.PI * 2); g.fillStyle = TOUR_COLOR; g.fill();
+    g.beginPath(); g.moveTo(9, 22); g.lineTo(15, 11); g.lineTo(18, 16); g.lineTo(20, 13); g.lineTo(25, 22); g.closePath();
+    g.fillStyle = '#06121c'; g.fill();
+  }), { pixelRatio: px });
+}
+// With a tour picked, the others step back so the picked one (drawn as the yellow route) stands out
+function styleTours(selectedId) {
+  if (!map.getLayer('tours-line')) return;
+  // No tour picked: every line at full strength. A tour picked: it is drawn as the yellow route,
+  // so its cyan copy hides and the rest step back.
+  const v = (full, picked, others) => selectedId ? ['case', ['==', ['get', 'id'], selectedId], picked, others] : full;
+  map.setPaintProperty('tours-glow', 'line-opacity', v(0.32, 0, 0.12));
+  map.setPaintProperty('tours-casing', 'line-opacity', v(0.95, 0, 0.45));
+  map.setPaintProperty('tours-line', 'line-opacity', v(1, 0, 0.5));
+  map.setPaintProperty('tours-arrows', 'icon-opacity', v(1, 0, 0.4));
+  map.setPaintProperty('tours-pin', 'icon-opacity', v(1, 1, 0.55));
+  map.setPaintProperty('tours-pin', 'text-opacity', v(1, 1, 0.6));
+}
+// Focus: fade every shading layer so the lines read at a glance; the toggle is remembered
+const FOCUS_FADE = { analysis: ['raster-opacity', 0.18], ates: ['raster-opacity', 0.2], runout: ['raster-opacity', 0.2], 'avy-fill': ['fill-opacity', 0.04], 'avy-line': ['line-opacity', 0.25], 'zones-line': ['line-opacity', 0.25], hillshade: ['hillshade-exaggeration', 0.15], base: ['raster-saturation', -0.55] };
+function applyFocus(on) {
+  state.focus = on; store.set('focus', on);
+  const b = document.getElementById('focus-btn');
+  if (b) { b.setAttribute('aria-pressed', String(on)); b.classList.toggle('on', on); }
+  if (!map.getLayer('analysis')) return;
+  for (const [id, [prop, v]] of Object.entries(FOCUS_FADE)) {
+    if (!map.getLayer(id)) continue;
+    if (on) map.setPaintProperty(id, prop, v);
+    else if (id === 'analysis') map.setPaintProperty(id, prop, +document.getElementById('opacity').value);
+    else map.setPaintProperty(id, prop, { ates: 0.55, runout: 0.55, 'avy-line': 0.85, 'zones-line': 0.8, hillshade: 0.35, base: 0 }[id] ?? null);
+  }
+  if (!on && map.getLayer('avy-fill')) map.setPaintProperty('avy-fill', 'fill-opacity', ['case', ['boolean', ['feature-state', 'hover'], false], 0.35, 0.14]);
+}
+
 function analysisTiles() {
   const q = state.mode === 'match' ? `?k=${state.mask}&s=${state.minSlope}` : '';
   return [`wbca://${state.mode}/{z}/{x}/{y}${q}`];
@@ -205,18 +257,27 @@ map.once('style.load', async () => {
   map.addLayer({ id: 'avy-line', type: 'line', source: 'avy', paint: { 'line-color': '#ff3b6b', 'line-width': 1.2, 'line-opacity': 0.85 } });
   map.addLayer({ id: 'avy-label', type: 'symbol', source: 'avy', minzoom: 13, filter: ['has', 'name'], layout: { 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 11, 'symbol-placement': 'point' }, paint: { 'text-color': '#ffd6df', 'text-halo-color': '#3a0010', 'text-halo-width': 1.2 } });
 
+  // Tours, drawn the onX way and then some: a soft glow, a dark casing, a bright dashed core and
+  // direction chevrons, with a pin and name at each objective. Cyan because every warm and purple hue
+  // is already taken by slope shading (yellow to purple), avalanche paths (pink) and the route (yellow).
+  addTourImages();
   map.addSource('tours', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  map.addLayer({ id: 'tours-line', type: 'line', source: 'tours', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#c084fc', 'line-width': 2.5, 'line-dasharray': [2, 1.5], 'line-opacity': 0.9 } });
-  map.addLayer({ id: 'tours-hit', type: 'line', source: 'tours', paint: { 'line-color': '#000', 'line-width': 16, 'line-opacity': 0 } });
-  map.addLayer({ id: 'tours-label', type: 'symbol', source: 'tours', minzoom: 12, layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 12 }, paint: { 'text-color': '#ecd9ff', 'text-halo-color': '#2a0a3a', 'text-halo-width': 1.4 } });
+  map.addSource('tour-ends', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  const W = (a, b) => ['interpolate', ['linear'], ['zoom'], 10, a, 15, b];
+  map.addLayer({ id: 'tours-glow', type: 'line', source: 'tours', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': TOUR_COLOR, 'line-width': W(10, 22), 'line-blur': W(4, 8), 'line-opacity': 0.32 } });
+  map.addLayer({ id: 'tours-casing', type: 'line', source: 'tours', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#06121c', 'line-width': W(5, 9), 'line-opacity': 0.95 } });
+  map.addLayer({ id: 'tours-line', type: 'line', source: 'tours', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': TOUR_COLOR, 'line-width': W(2.6, 5), 'line-dasharray': [2.2, 1.1], 'line-opacity': 1 } });
+  map.addLayer({ id: 'tours-arrows', type: 'symbol', source: 'tours', minzoom: 12, layout: { 'symbol-placement': 'line', 'symbol-spacing': ['interpolate', ['linear'], ['zoom'], 12, 60, 16, 110], 'icon-image': 'tour-chev', 'icon-size': W(0.7, 1), 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  map.addLayer({ id: 'tours-hit', type: 'line', source: 'tours', paint: { 'line-color': '#000', 'line-width': 22, 'line-opacity': 0 } });
+  map.addLayer({ id: 'tours-pin', type: 'symbol', source: 'tour-ends', layout: { 'icon-image': 'tour-pin', 'icon-anchor': 'bottom', 'icon-size': W(0.75, 1), 'icon-allow-overlap': true, 'text-field': ['get', 'name'], 'text-font': ['Open Sans Bold'], 'text-size': W(12, 15), 'text-anchor': 'top', 'text-offset': [0, 0.3], 'text-max-width': 8, 'text-optional': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#06121c', 'text-halo-width': 2.2, 'text-halo-blur': 0.3 } });
 
   map.addSource('tour-marks', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'tour-marks-dot', type: 'circle', source: 'tour-marks', paint: { 'circle-radius': ['match', ['get', 'kind'], 'death', 4, 5], 'circle-color': ['match', ['get', 'kind'], 'death', '#2b0a12', '#ffffff'], 'circle-stroke-color': ['match', ['get', 'kind'], 'death', '#ff6b8a', '#7c3aed'], 'circle-stroke-width': 2 } });
   map.addLayer({ id: 'tour-marks-label', type: 'symbol', source: 'tour-marks', layout: { 'text-field': ['case', ['==', ['get', 'kind'], 'death'], ['concat', '† ', ['get', 'name']], ['get', 'name']], 'text-font': ['Open Sans Semibold'], 'text-size': ['match', ['get', 'kind'], 'death', 10, 12], 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': ['match', ['get', 'kind'], 'death', '#ffb3c2', '#ffffff'], 'text-halo-color': '#1a0a2a', 'text-halo-width': 1.5 } });
 
   map.addSource('route', { type: 'geojson', data: routeGeoJSON() });
-  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b0f14', 'line-width': 6 } });
-  map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffcf4a', 'line-width': 3 } });
+  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#0b0f14', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 7, 15, 11] } });
+  map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', '$type', 'LineString'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffcf4a', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3.5, 15, 6] } });
   map.addLayer({ id: 'route-pts', type: 'circle', source: 'route', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 4, 'circle-color': '#ffcf4a', 'circle-stroke-color': '#0b0f14', 'circle-stroke-width': 1.5 } });
 
   bindUI();
@@ -255,7 +316,7 @@ map.on('mouseleave', 'avy-fill', () => {
 map.on('click', e => {
   if (state.drawing) { addRoutePoint([e.lngLat.lng, e.lngLat.lat]); return; }
   if (state.pinning) { addPin(e.lngLat); return; }
-  const tourHit = map.getLayer('tours-hit') && map.queryRenderedFeatures([[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]], { layers: ['tours-hit'] })[0];
+  const tourHit = map.getLayer('tours-hit') && map.queryRenderedFeatures([[e.point.x - 8, e.point.y - 8], [e.point.x + 8, e.point.y + 8]], { layers: ['tours-pin', 'tours-hit'] })[0];
   if (tourHit) { selectTour(tourHit.properties.id); return; }
   const feats = map.queryRenderedFeatures(e.point, { layers: ['avy-fill', 'zones-line'].filter(l => map.getLayer(l) && map.getLayoutProperty(l, 'visibility') !== 'none') });
   const avy = feats.find(f => f.layer.id === 'avy-fill');
@@ -357,7 +418,10 @@ function bindUI() {
     r.checked = r.value === state.mode;
     r.onchange = () => { state.mode = r.value; store.set('mode', state.mode); refreshAnalysis(); };
   });
-  $('opacity').oninput = () => map.setPaintProperty('analysis', 'raster-opacity', +$('opacity').value);
+  $('opacity').oninput = () => { if (state.focus) applyFocus(false); map.setPaintProperty('analysis', 'raster-opacity', +$('opacity').value); };
+  const fb = $('focus-btn');
+  if (fb) fb.onclick = () => applyFocus(!state.focus);
+  applyFocus(store.get('focus', false));
 
   $('minslope').value = state.minSlope;
   $('minslope').onchange = () => {
@@ -843,6 +907,8 @@ async function loadTours() {
   }
   // the map only needs the line and its name; the guide reads the rest from state.tours
   map.getSource('tours')?.setData({ type: 'FeatureCollection', features: state.tours.features.map(f => ({ type: 'Feature', geometry: f.geometry, properties: { id: f.properties.id, name: f.properties.name } })) });
+  map.getSource('tour-ends')?.setData({ type: 'FeatureCollection', features: state.tours.features.map(f => ({ type: 'Feature', geometry: { type: 'Point', coordinates: f.geometry.coordinates.at(-1) }, properties: { id: f.properties.id, name: f.properties.name } })) });
+  styleTours(state.tourId);
   // a route saved before tours had ids: find its tour by name
   if (!state.tourId && state.routeName) state.tourId = state.tours.features.find(f => f.properties.name === state.routeName.replace(/ \(edited\)$/, ''))?.properties.id || null;
   renderTours();
@@ -896,6 +962,7 @@ function renderPhotoIndex() {
   el.querySelectorAll('button[data-id]').forEach(b => { b.onclick = () => selectTour(b.dataset.id); });
 }
 function markTour(id) {
+  styleTours(id);
   document.querySelectorAll('.tour').forEach(li => li.classList.toggle('selected', !!id && li.dataset.id === id));
 }
 function selectTour(id) {
@@ -1076,8 +1143,8 @@ function renderUacList() {
 async function loadAltaSnow() {
   const el = document.getElementById('alta-mini');   // the map panel no longer has the mini chart; marker only
   const marker = document.createElement('a');
-  marker.className = 'alta-marker'; marker.href = 'forecast.html'; marker.title = 'Alta forecast point, 9,895 ft';
-  marker.innerHTML = '<img src="badge.svg" alt=""><span>Alta</span>';
+  marker.className = 'alta-marker'; marker.href = 'forecast.html?r=alta'; marker.title = 'Alta forecast point, 9,895 ft';
+  marker.innerHTML = '<b class="am-mono">AL</b><span>Alta</span>';
   new maplibregl.Marker({ element: marker, anchor: 'bottom' }).setLngLat([POINT.lon, POINT.lat]).addTo(map);
   try {
     const b = build(await fetchAll(false));

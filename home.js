@@ -1,5 +1,6 @@
-// Home: Alta 15-day snow (forecast-data.js does the maths) and today's avalanche danger chip.
+// Home: avalanche row, Alta 15-day snow (forecast-data.js does the maths), next storm and today.
 const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function renderChart(b) {
   $('chart').innerHTML = snowBars(b.days);
@@ -8,56 +9,55 @@ function renderChart(b) {
 
 function renderTotals(b, data) {
   const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
-  const obs = snotelDaily(data.snotel);
-  const last = obs.at(-1);
-  $('totals').innerHTML = `
-    <div class="obs"><b>${last ? last.gain + '"' : '–'}</b><span>Last 24h</span></div>
-    <div><b>${tot(0, 5)}"</b><span>Next 5 days</span></div>
-    <div><b>${tot(5, 10)}"</b><span>Days 6–10</span></div>
-    <div><b>${tot(10, 15)}"</b><span>Days 11–15</span></div>`;
+  const last = snotelDaily(data.snotel).at(-1);
+  const cell = (v, label, cls = '') => `<div class="stat-cell ${cls}"><b>${v}</b><span>${label}</span></div>`;
+  const n5 = tot(0, 5);
+  $('totals').innerHTML = cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')
+    + cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '') + cell(tot(5, 10) + '"', 'Days 6–10') + cell(tot(10, 15) + '"', 'Days 11–15');
 }
 
 function renderStorm(b) {
   const el = $('storm');
   const s = biggestStorm(b.days);
-  if (!s) { el.innerHTML = '<h2>Next storm</h2><div class="big">None</div><p>No day with 2"+ in the next 15 days.</p>'; return; }
-  const inDays = s.from === 0 ? 'starts today' : s.from === 1 ? 'starts tomorrow' : `in ${s.from} days`;
-  el.innerHTML = `<h2>${s.first ? 'Next storm' : 'Biggest storm'}</h2>
-    <div class="big">${Math.round(s.total)}" <small>${s.when}</small></div>
+  if (!s) { el.innerHTML = '<h2 class="eyebrow">Next storm</h2><div class="big">None</div><p>No day with 2"+ in the next 15 days.</p>'; return; }
+  const inDays = s.from === 0 ? 'Starts today' : s.from === 1 ? 'Starts tomorrow' : `In ${s.from} days`;
+  el.innerHTML = `<h2 class="eyebrow">${s.first ? 'Next storm' : 'Biggest storm'}</h2>
+    <div class="big${s.total >= 6 ? ' pow' : ''}">${Math.round(s.total)}"</div><p class="when"><b>${s.when}</b></p>
     <p>${inDays}; most on <b>${dow(s.peak.date)}</b> (${Math.round(s.peak.snow)}")${s.pow >= 10 ? `. <span class="pow">${Math.round(s.pow)}% chance</span> of a 6"+ day` : ''}.</p>`;
 }
 
 function renderToday(b) {
   const { label, day, night } = dayAhead(b);
-  const el = $('today');
   const t = v => v == null ? '–' : Math.round(v) + '°';
   const lvl = day?.snowLevel ?? day?.fz;
-  el.innerHTML = `<h2>${label} at Alta</h2>
+  $('today').innerHTML = `<h2 class="eyebrow">${label} at Alta</h2>
     <div class="big">${t(day?.tempF)} <small>/ ${t(night?.tempF)}</small></div>
-    <p>Wind <b>${day?.ws == null ? '–' : SNOW.compass(day.wd) + ' ' + Math.round(day.ws)}</b> mph${day?.wg ? `, gusts ${Math.round(day.wg)}` : ''}${lvl ? ` · ${day?.snowLevel != null ? 'snow level' : 'freezing'} <b>${(Math.round(lvl / 100) * 100).toLocaleString()}′</b>` : ''}</p>
-    <p><a href="https://www.alta.com/weather" target="_blank" rel="noopener">Snow stake &amp; cams on alta.com ↗</a></p>`;
+    <p>Wind <b>${day?.ws == null ? '–' : SNOW.compass(day.wd) + ' ' + Math.round(day.ws)}</b> mph${day?.wg ? `, gusts ${Math.round(day.wg)}` : ''}${lvl ? ` · ${day?.snowLevel != null ? 'snow level' : 'freezing'} <b>${(Math.round(lvl / 100) * 100).toLocaleString()}′</b>` : ''}</p>`;
 }
 
 async function renderAvy() {
-  const chip = $('avy-chip');
+  const row = $('avy'), dot = row.querySelector('.avy-dot'), name = $('avy-name');
   try {
     const a = await fetchAvalanche();
     const lvl = a.zone?.level, dg = DANGER[lvl];
-    chip.hidden = false;
     if (dg) {
-      chip.style.cssText = `background:${dg.color};color:${dg.ink};${dg.border ? `border-color:${dg.border}` : ''}`;
-      chip.innerHTML = `<span>Avalanche · Salt Lake</span><b>${lvl} ${dg.name}</b>`;
+      dot.style.cssText = `background:${dg.color};color:${dg.ink};${dg.border ? `box-shadow:inset 0 0 0 2px ${dg.border}` : ''}`;
+      dot.textContent = lvl;
+      name.innerHTML = `${dg.name} danger`;
     } else {
-      chip.style.cssText = 'background:var(--btn);color:var(--text);border-color:var(--line)';
-      chip.innerHTML = '<span>Avalanche · Salt Lake</span><b>No rating yet</b>';
+      dot.style.cssText = ''; dot.textContent = '–';
+      name.innerHTML = 'No rating issued yet<small>UAC rates daily once the season starts</small>';
     }
   } catch {
-    chip.hidden = true;   // no worker locally, or the feed is down: the chip just stays hidden
+    dot.style.cssText = ''; dot.innerHTML = ICON.alert;
+    name.innerHTML = 'Rating unavailable<small>Open the UAC forecast from the Backcountry map</small>';
   }
 }
 
 async function load(force) {
-  $('status').textContent = 'Loading forecast…';
+  const btn = $('refresh');
+  btn.classList.add('spin'); btn.disabled = true;
+  $('snow-error').innerHTML = '';
   try {
     const raw = await fetchAll(force);
     const b = build(raw);
@@ -66,9 +66,16 @@ async function load(force) {
     renderStorm(b);
     renderToday(b);
     const t = new Date(raw.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    $('status').textContent = `15-day snow · 9,895 ft · updated ${t}`;
+    $('status').textContent = `9,895 ft · ${t}`;
+    const down = Object.keys(raw.errors || {}).filter(k => k !== 'corrections');
+    if (down.length) $('snow-error').innerHTML = `<div class="banner warn">${ICON.alert}<div><b>Some sources didn't answer</b>${esc(down.join(', '))}. The rest of the blend is shown.</div></div>`;
   } catch (e) {
-    $('status').textContent = `Forecast unavailable: ${e.message}`;
+    $('status').textContent = 'Unavailable';
+    $('chart').innerHTML = '';
+    $('snow-error').innerHTML = `<div class="banner ${navigator.onLine === false ? 'info' : 'danger'}">${ICON[navigator.onLine === false ? 'wifiOff' : 'alert']}<div><b>${navigator.onLine === false ? 'No signal' : 'Forecast unavailable'}</b>${navigator.onLine === false ? 'The forecast loads when you are back in coverage.' : esc(e.message)}</div></div>`;
+    ['storm', 'today'].forEach(id => { $(id).querySelectorAll('.skeleton').forEach(s => s.remove()); });
+  } finally {
+    btn.classList.remove('spin'); btn.disabled = false;
   }
 }
 

@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11161c">
+  <meta name="theme-color" content="#0b0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Backcountry · Wasatch BC Atlas</title>
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="lib/maplibre-gl-5.24.0.css">
   <link rel="icon" href="badge.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
@@ -18,11 +19,12 @@
   <div id="map-error" class="map-error" role="alert" hidden></div>
 
   <header class="bc-top">
-    <a href="./" class="top-btn" aria-label="Home">‹</a>
+    <a href="./" class="map-btn" aria-label="Home"><i data-icon="back"></i></a>
     <button id="avy-btn" class="avy-btn" aria-haspopup="dialog" aria-controls="avy-sheet">
-      <span class="avy-btn-label">Avalanche Risk</span>
+      <span class="avy-btn-label">Avalanche</span>
       <b id="avy-level">…</b>
     </button>
+    <button id="focus-btn" class="map-btn focus-btn" aria-pressed="false" title="Focus tours: fade shading so the lines stand out"><i data-icon="focus"></i><span>Focus</span></button>
   </header>
 
   <aside id="panel" class="sheet" data-state="peek" aria-label="Backcountry tools">

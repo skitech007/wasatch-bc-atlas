@@ -2,73 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Snow Forecast</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Snow Forecast · Wasatch BC Atlas</title>
   <link rel="icon" href="badge.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="forecast.css">
 </head>
-<body class="fc">
-  <header class="fc-head">
-    <a href="resorts.html" class="back" title="All resorts">← Resorts</a>
-    <span id="badge" class="badge"></span>
-    <div>
-      <h1><span id="rname">&nbsp;</span> <span class="muted" id="rpoint"></span><img src="alta-mountain.svg" alt="" class="mountain-logo" id="alta-logo" hidden></h1>
-      <p class="sub" id="status">Loading forecast…</p>
+<body class="page fc">
+  <header class="topbar">
+    <a href="resorts.html" class="icon-btn" aria-label="All resorts"><i data-icon="back"></i></a>
+    <div class="topbar-title">
+      <span id="badge" class="badge"></span>
+      <div><h1 id="rname">&nbsp;</h1><p class="sub" id="status">Loading forecast…</p></div>
     </div>
-    <a href="scorecard.html" class="score-link" id="score-link" title="How accurate this forecast has been" hidden>Scorecard</a>
-    <button id="refresh" title="Fetch fresh data">Refresh</button>
+    <div class="topbar-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="Glare mode"></button>
+      <button class="icon-btn" id="refresh" aria-label="Refresh forecast"><i data-icon="refresh"></i></button>
+    </div>
   </header>
+  <nav class="jumpnav" aria-label="Sections">
+    <a href="#s-summary">Summary</a><a href="#s-cams">Cams</a><a href="#s-periods">12-hour</a><a href="#s-hourly">Hourly</a><a href="#s-models">Models</a><a href="#s-observed">Observed</a><a href="#s-afd">NWS</a><a href="#s-method">Method</a>
+  </nav>
 
   <div id="alerts"></div>
 
-  <main>
-    <section class="card">
-      <h2>Snow summary <span class="muted">· each day is 6 pm the night before to 6 pm</span></h2>
-      <div id="summary" class="summary"></div>
-      <div class="odds-wrap">
-        <span class="odds-label">Chance of 6"+ <small>%</small></span>
-        <div id="odds" class="odds"></div>
-      </div>
-      <div class="legend-row"><span id="legend"></span><span class="muted" id="opening"></span></div>
+  <main class="page-main">
+    <section class="card" id="s-summary">
+      <div class="card-head"><h2>Snow summary</h2><span id="opening"></span></div>
+      <div id="summary" class="summary"><div class="skeleton sk-block"></div></div>
+      <div class="legend-row"><span id="legend"></span></div>
       <p class="hint" id="summary-hint"></p>
     </section>
 
-    <section class="card" id="cams-card">
-      <h2>Live cams</h2>
+    <section class="card" id="s-cams">
+      <div class="card-head"><h2>Live cams</h2></div>
       <div id="cams"></div>
     </section>
 
-    <section class="card">
-      <h2>Day &amp; night</h2>
-      <div id="periods" class="scroll-x"></div>
+    <section class="card" id="s-periods">
+      <div class="card-head"><h2>Day &amp; night</h2><span class="muted">12-hour periods</span></div>
+      <div id="periods"><div class="skeleton sk-block"></div></div>
     </section>
 
-    <section class="card">
-      <h2>Hourly</h2>
-      <div class="jump-row"><span class="muted">Jump to</span><div id="jump" class="jump"></div></div>
-      <div id="hourly" class="scroll-x hourly"></div>
+    <section class="card" id="s-hourly">
+      <div class="card-head"><h2>Hourly</h2><span class="muted" id="hourly-day"></span></div>
+      <div id="jump" class="segmented" role="tablist" aria-label="Day"></div>
+      <div id="hourly" class="hourly"></div>
     </section>
 
-    <section class="card">
-      <h2>Models side by side</h2>
+    <section class="card" id="s-models">
+      <div class="card-head"><h2>Models side by side</h2></div>
       <div id="cumulative" class="cumulative"></div>
       <p class="hint" id="models-hint"></p>
       <div id="models" class="scroll-x"></div>
     </section>
 
-    <section class="card">
-      <h2>What actually fell <span class="muted" id="obs-where"></span></h2>
+    <section class="card" id="s-observed">
+      <div class="card-head"><h2>What actually fell</h2><span class="muted" id="obs-where"></span></div>
       <div id="observed"></div>
     </section>
 
-    <section class="card">
-      <h2>NWS forecast discussion</h2>
+    <section class="card" id="s-afd">
+      <div class="card-head"><h2>NWS forecast discussion</h2></div>
       <div id="afd" class="afd"></div>
     </section>
 
-    <section class="card method">
-      <h2>How these numbers are made</h2>
+    <section class="card method" id="s-method">
+      <div class="card-head"><h2>How these numbers are made</h2></div>
       <div id="method"></div>
     </section>
   </main>

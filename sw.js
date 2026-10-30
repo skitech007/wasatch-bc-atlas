@@ -3,14 +3,14 @@
 // Map tiles and map fonts go in a second cache, cache-first, so a tour viewed (or
 // saved with "Save for offline") at home still draws with no signal on the skin track. The app's own
 // terrain-class tiles (/tiles/) stay in the shell cache, so a rebuild replaces them.
-const CACHE = 'atlas-shell-v5';
+const CACHE = 'atlas-shell-v6';
 const TILES = 'atlas-tiles-v1';
 const TILE_MAX = 12000;          // entries kept; the oldest go first past this
 const SHELL = [
   './', 'index.html', 'home.css', 'home.js', 'backcountry.html', 'backcountry.css', 'app.css', 'app.js', 'dem.js', 'tile-worker.js',
   'risk.js', 'sun.js', 'avalanche.js', 'forecast.html', 'forecast.css', 'forecast.js', 'forecast-data.js', 'snow.js',
-  'snowbars.js', 'resorts.html', 'resorts.css', 'resorts.js', 'data/resorts.json',
-  'scorecard.html', 'scorecard.js', 'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png',
+  'snowbars.js', 'theme.js', 'resorts.html', 'resorts.css', 'resorts.js', 'data/resorts.json',
+  'scorecard.html', 'scorecard.js', 'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'data/alta_calibration.json', 'data/snowbird_calibration.json', 'data/brighton_calibration.json', 'data/solitude_calibration.json',
   'data/avalanche_paths.geojson', 'data/uac_zones.geojson', 'data/uac_routes.json',
   'data/tours.geojson', 'data/nhd_streams.geojson', 'lib/maplibre-gl-5.24.0.js', 'lib/maplibre-gl-5.24.0.css',

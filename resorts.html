@@ -3,32 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11161c">
+  <meta name="theme-color" content="#0b0f14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Resorts</title>
+  <title>Resorts · Wasatch BC Atlas</title>
   <link rel="icon" href="badge.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="resorts.css">
 </head>
-<body class="rs">
-  <header class="rs-head">
-    <a href="./" class="back">← Home</a>
-    <div class="title">
-      <h1>Resorts</h1>
-      <p class="sub" id="status">Cottonwood Canyons · star one to keep it on top</p>
+<body class="page rs">
+  <header class="topbar">
+    <a href="./" class="icon-btn" aria-label="Home"><i data-icon="back"></i></a>
+    <div class="topbar-title"><div><h1>Resorts</h1><p class="sub" id="status">Cottonwood Canyons</p></div></div>
+    <div class="topbar-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="Glare mode"></button>
+      <button class="icon-btn" id="refresh" aria-label="Refresh forecasts"><i data-icon="refresh"></i></button>
     </div>
-    <button id="refresh" class="linkish">Refresh</button>
   </header>
 
-  <main id="list"></main>
-
-  <footer class="rs-foot">
-    <div id="legend"></div>
-    <p>Each day is 6 pm the night before to 6 pm. Last 24 h is the rise in snow depth at the nearest SNOTEL. Opening days from Ski Utah.</p>
-  </footer>
+  <main class="page-main">
+    <div id="list" class="rlist"></div>
+    <footer class="foot">
+      <div id="legend"></div>
+      <p>Star a resort to keep it on top. Each day runs 6 pm the night before to 6 pm. Last 24 h is the rise in snow depth at the nearest SNOTEL. Opening days from Ski Utah.</p>
+    </footer>
+  </main>
 
   <script src="snow.js"></script>
   <script src="forecast-data.js"></script>

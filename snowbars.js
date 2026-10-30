@@ -42,7 +42,11 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = fal
       + (d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
     // Compact rows (the resorts list) only label the 6"+ days, without the inch mark so neighbours
     // don't touch; the group totals carry the rest
-    const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v);
+    // Past 10 columns the inch mark is dropped too (the legend says inches), so two-digit neighbours
+    // like 14 and 18 never run together on a 390 pt phone
+    const tight = days.length > 10;
+    const lab = tight ? snowLabel(v).replace('"', '') : snowLabel(v);
+    const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : lab;
     const isToday = todayFirst && i === 0;
     return `<div class="sb-col${isToday ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
       <span class="sb-v">${label}</span>
@@ -52,7 +56,22 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = fal
   }).join('')}</div>`;
 }
 
-const snowLegend = () => `<div class="sb-legend"><span><i class="t-snow"></i>Snow</span><span><i class="t-mix"></i>Mix</span><span><i class="t-rain"></i>Rain</span><span><i class="t-pow"></i>${POWDER_IN}"+ day</span></div>`;
+const snowLegend = () => `<div class="sb-legend"><span><i class="t-snow"></i>Snow</span><span><i class="t-mix"></i>Mix</span><span><i class="t-rain"></i>Rain</span><span><i class="t-pow"></i>${POWDER_IN}"+ day</span><span class="sb-unit">Inches</span></div>`;
+
+// Weather glyph for a period or hour: inline SVG from theme.js, with a text name for screen readers
+function wxKind({ snow, water, frac, cc, isDay }) {
+  if (snow >= 0.1 && frac >= 0.5) return ['snow', 'Snow'];
+  if (water >= 0.01 && frac < 0.5) return ['rain', 'Rain'];
+  if (water >= 0.01) return ['snow', 'Light snow'];
+  if (cc == null) return ['', ''];
+  if (cc < 25) return isDay ? ['clear', 'Clear'] : ['night', 'Clear'];
+  if (cc < 60) return isDay ? ['partly', 'Partly cloudy'] : ['cloud', 'Partly cloudy'];
+  return ['cloud', 'Cloudy'];
+}
+function wxIcon(x) {
+  const [k, name] = wxKind(x);
+  return k ? `<span class="wx wx-${k}" role="img" aria-label="${name}" title="${name}">${globalThis.ICON?.wx?.[k] || ''}</span>` : '';
+}
 
 // Today's day and night periods, or tomorrow's once today's daytime is over (after 6 pm)
 function dayAhead(b) {

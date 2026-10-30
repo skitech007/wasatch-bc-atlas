@@ -21,35 +21,31 @@ const shortDate = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { 
 
 function cardBody(r) {
   const x = got[r.id];
-  if (!x) return '<p class="muted rc-wait">Loading forecast…</p>';
-  if (x.error) return `<p class="warn rc-wait">Forecast unavailable: ${esc(x.error)}</p>`;
+  if (!x) return '<div class="rc-wait" aria-busy="true"><div class="skeleton sk-line" style="width:60%"></div><div class="skeleton" style="height:92px"></div></div>';
+  if (x.error) return `<div class="banner warn rc-wait">${ICON.alert}<div><b>Forecast unavailable</b>${esc(x.error)}</div></div>`;
   const { raw, b } = x;
   const last = snotelDaily(raw.data.snotel).at(-1);
   const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
   const { label, day, night } = dayAhead(b);
-  const lvl = day?.snowLevel ?? day?.fz;
   const st = biggestStorm(b.days);
-  return `<div class="rc-body">
-      <div class="last24"><b>${last ? last.gain + '"' : '–'}</b><span>Last 24 h</span><small>${esc(r.snotel.name)} SNOTEL</small></div>
-      <div class="next">
-        <div class="tots"><span>Next 5 days<b>${tot(0, 5)}"</b></span><span>Days 6–10<b>${tot(5, 10)}"</b></span><span>Days 11–15<b>${tot(10, 15)}"</b></span></div>
-        ${snowBars(b.days, { compact: true })}
-      </div>
-    </div>
-    <p class="rc-line">${st ? `<span class="${st.total >= 6 ? 'pow' : ''}">${st.first ? 'Next storm' : 'Biggest storm'} <b>${Math.round(st.total)}"</b> ${st.when}</span> · ` : ''}${label} <b>${deg(day?.tempF)}</b> / ${deg(night?.tempF)}${day?.ws != null ? ` · ${SNOW.compass(day.wd)} ${Math.round(day.ws)} mph` : ''}${lvl ? ` · ${day?.snowLevel != null ? 'snow level' : 'freezing'} ${ft(Math.round(lvl / 100) * 100)}′` : ''}</p>`;
+  const n5 = tot(0, 5);
+  const cell = (v, l, c = '') => `<div class="stat-cell ${c}"><b>${v}</b><span>${l}</span></div>`;
+  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6–10')}${cell(tot(10, 15) + '"', 'Days 11–15')}</div>
+    ${snowBars(b.days, { compact: true })}
+    <p class="rc-line">${st ? `<span class="${st.total >= 6 ? 'pow' : ''}">${st.first ? 'Next storm' : 'Biggest storm'} <b>${Math.round(st.total)}"</b> ${st.when}</span>` : '<span>No storm in 15 days</span>'}<span>${label} <b>${deg(day?.tempF)}</b> / ${deg(night?.tempF)}${day?.ws != null ? ` · ${SNOW.compass(day.wd)} ${Math.round(day.ws)} mph` : ''}</span></p>`;
 }
 
 function render() {
   const f = favs(), today = localKey(new Date()).slice(0, 10);
   $('list').innerHTML = order().map(r => {
     const star = f.includes(r.id);
-    const opening = !r.opening ? 'Opening day TBA' : r.opening > today ? `Opens ${shortDate(r.opening)}` : '';
+    const opening = !r.opening ? 'Opening TBA' : r.opening > today ? `Opens ${shortDate(r.opening)}` : '';
     return `<article class="rcard">
       <a class="rc-link" href="forecast.html?r=${r.id}" aria-label="${esc(r.name)} full forecast"></a>
       <header>
         <span class="mono ${r.canyon === 'Little Cottonwood' ? 'lcc' : 'bcc'}" aria-hidden="true">${MONO[r.id] || ''}</span>
-        <div class="rc-name"><h2>${esc(r.name)}${opening ? ` <span class="opening">${opening}</span>` : ''}</h2><p>${esc(r.canyon)} · ${ft(r.point.ft)} ft</p></div>
-        <button class="star${star ? ' on' : ''}" data-star="${r.id}" aria-pressed="${star}" title="${star ? 'Unstar' : 'Star to keep on top'}">${star ? '★' : '☆'}</button>
+        <div class="rc-name"><h2>${esc(r.name)}${opening ? ` <span class="pill warn">${opening}</span>` : ''}</h2><p>${esc(r.canyon)} · forecast at ${ft(r.point.ft)} ft</p></div>
+        <button class="icon-btn star${star ? ' on' : ''}" data-star="${r.id}" aria-pressed="${star}" aria-label="${star ? 'Unstar' : 'Star'} ${esc(r.name)}">${ICON.star}</button>
       </header>
       ${cardBody(r)}
     </article>`;
@@ -58,7 +54,8 @@ function render() {
 
 async function load(force) {
   $('status').textContent = 'Loading forecasts…';
-  try { resorts = await loadResorts(); } catch (e) { $('status').textContent = `Couldn't load the resort list: ${e.message}`; return; }
+  $('refresh').classList.add('spin');
+  try { resorts = await loadResorts(); } catch (e) { $('status').textContent = `Couldn't load the resort list: ${e.message}`; $('refresh').classList.remove('spin'); return; }
   if (force) resorts.forEach(r => delete got[r.id]);
   render();
   await Promise.all(resorts.map(r => fetchAll(force, r.id)
@@ -67,6 +64,7 @@ async function load(force) {
     .finally(render)));
   const ok = resorts.filter(r => got[r.id]?.raw);
   const at = Math.min(...ok.map(r => got[r.id].raw.at));
+  $('refresh').classList.remove('spin');
   $('status').textContent = ok.length ? `Cottonwood Canyons · updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Forecasts unavailable';
 }
 
