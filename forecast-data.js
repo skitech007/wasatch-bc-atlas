@@ -1,6 +1,7 @@
-// Alta forecast data: fetches public model, ensemble, NWS and SNOTEL data and runs the snow maths
-// in snow.js. Used by forecast.html (full page), index.html (home), backcountry.html (map panel) and the nightly scorecard
-// worker (worker/index.js), which imports this file as a module and reads the globals it sets.
+// Resort forecast data: fetches public model, ensemble, NWS and SNOTEL data and runs the snow maths
+// in snow.js. Used by forecast.html (full page), resorts.html (the four resorts), index.html (home),
+// backcountry.html (map panel) and the nightly scorecard worker (worker/index.js), which imports this
+// file as a module and reads the globals it sets. Alta is the default; data/resorts.json has the others.
 
 const POINT = { lat: 40.5884, lon: -111.6386, elevM: 3016, ft: 9895 };
 // Where the temperature correction was measured, and where the scorecard checks temperatures
@@ -41,11 +42,13 @@ function mstOf(key) {
   const h = (hourOf(key) - (isDst(dateOf(key)) ? 1 : 0) + 24) % 24;
   return { month: +key.slice(5, 7), block: Math.floor(h / 3) };
 }
-function tempBiasAt(calib, roll, model, lead, key) {
+// `wet`: the model has 0.01"+ this hour. Sensors read closer to the models while it snows than on
+// clear nights, so storm hours get the calibration's storm-hour adjustment on top.
+function tempBiasAt(calib, roll, model, lead, key, wet = false) {
   const { month, block } = mstOf(key);
   const a = calib?.temperature_bias_month_3h?.[model]?.[month]?.[block] ?? 0;
   const b = roll?.[model]?.[lead]?.[block];
-  return b == null ? a : (a + b) / 2;
+  return (b == null ? a : (a + b) / 2) + (wet ? calib?.temperature_wet_adjust?.[model]?.adjust ?? 0 : 0);
 }
 // Rolling bias: mean observed − forecast over the 14 days before `asOf`, per model, lead day and
 // 3-hour MST block. `prev` is Open-Meteo Previous Runs hourly data at Atwater (timezone GMT);
@@ -68,7 +71,7 @@ function rollingTempBias(prev, obs, asOf, days = 14) {
   }
   return out;
 }
-// Storm direction from the 700 mb wind; sectors match tools/calibrate_alta.py
+// Storm direction from the 700 mb wind; sectors match tools/calibrate.py
 function flowSector(deg) {
   if (deg == null) return null;
   if (deg >= 285 || deg < 15) return 'NW';
@@ -121,8 +124,17 @@ function expandNws(series, { spread = false, scale = 1 } = {}) {
   return out;
 }
 
+// ---------- resorts ----------
+let resortsP = null;
+async function loadResorts() {
+  resortsP ||= getJSON('data/resorts.json').then(c => c.resorts.map(r => ({
+    ...r, point: { ...r.point, elevM: Math.round(r.point.ft * 0.3048) },
+  }))).catch(e => { resortsP = null; throw e; });
+  return resortsP;
+}
+const resortById = async id => { const rs = await loadResorts(); return rs.find(r => r.id === id) || rs[0]; };
+
 // ---------- fetching ----------
-const CACHE_KEY = 'alta-forecast-v5';
 const CACHE_MIN = 20;
 
 async function getJSON(url) {
@@ -140,24 +152,28 @@ function omQuery(extra, point = POINT) {
   return q.toString();
 }
 
-async function fetchAll(force) {
+async function fetchAll(force, resortId = 'alta') {
+  const r = await resortById(resortId);
+  const cacheKey = `${r.id}-forecast-v5`;
   if (!force) {
     try {
-      const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (c && Date.now() - c.at < CACHE_MIN * 60e3) return c;
+      const c = JSON.parse(localStorage.getItem(cacheKey));
+      if (c && Date.now() - c.at < CACHE_MIN * 60e3) return { ...c, resort: r };
     } catch { /* storage unavailable: fetch fresh */ }
   }
   const today = localKey(new Date()).slice(0, 10);
+  const pt = r.point;
   const jobs = {
-    calib: getJSON('data/alta_calibration.json'),
-    // Wind correction learned nightly by the scorecard worker (absent when running locally)
-    corrections: getJSON('api/corrections'),
-    det: getJSON('https://api.open-meteo.com/v1/forecast?' + omQuery({ hourly: HOURLY_VARS.join(','), models: MODELS.map(m => m.id).join(',') })),
-    ens: getJSON('https://ensemble-api.open-meteo.com/v1/ensemble?' + omQuery({ hourly: 'precipitation,temperature_2m', models: ENSEMBLES.map(e => e.id).join(',') })),
-    nws: getJSON('https://api.weather.gov/gridpoints/SLC/108,167'),
-    alerts: getJSON(`https://api.weather.gov/alerts/active?point=${POINT.lat},${POINT.lon}`),
+    calib: getJSON(`data/${r.id}_calibration.json`),
+    // Temperature and wind corrections re-learned nightly by the scorecard worker, for Alta only
+    // (absent when running locally)
+    ...(r.id === 'alta' ? { corrections: getJSON('api/corrections') } : {}),
+    det: getJSON('https://api.open-meteo.com/v1/forecast?' + omQuery({ hourly: HOURLY_VARS.join(','), models: MODELS.map(m => m.id).join(',') }, pt)),
+    ens: getJSON('https://ensemble-api.open-meteo.com/v1/ensemble?' + omQuery({ hourly: 'precipitation,temperature_2m', models: ENSEMBLES.map(e => e.id).join(',') }, pt)),
+    nws: getJSON(`https://api.weather.gov/gridpoints/${r.nws}`),
+    alerts: getJSON(`https://api.weather.gov/alerts/active?point=${pt.lat},${pt.lon}`),
     afd: getJSON('https://api.weather.gov/products/types/AFD/locations/SLC').then(l => getJSON(l['@graph'][0]['@id'])),
-    snotel: getJSON('https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=1308:UT:SNTL&elements=SNWD,WTEQ,PREC,TOBS&duration=DAILY'
+    snotel: getJSON(`https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=${r.snotel.triplet}&elements=SNWD,WTEQ,PREC,TOBS&duration=DAILY`
       + `&beginDate=${addDays(today, -31)}&endDate=${today}`),
   };
   const names = Object.keys(jobs);
@@ -172,9 +188,9 @@ async function fetchAll(force) {
   // Only cache a complete fetch, so one source's hiccup isn't kept for the whole cache window
   // (the corrections endpoint doesn't exist on a local server, so it doesn't count)
   if (!Object.keys(out.errors).filter(k => k !== 'corrections').length) {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(out)); } catch { /* quota or private mode */ }
+    try { localStorage.setItem(cacheKey, JSON.stringify(out)); } catch { /* quota or private mode */ }
   }
-  return out;
+  return { ...out, resort: r };
 }
 
 // ---------- model maths ----------
@@ -226,7 +242,7 @@ function build({ data }) {
     const per = {};
     for (const m of MODELS) {
       const g = v => det[`${v}_${m.id}`]?.[i] ?? null;
-      const bias = tempBiasAt(calib, roll, m.id, lead, t);
+      const bias = tempBiasAt(calib, roll, m.id, lead, t, (det[`precipitation_${m.id}`]?.[i] ?? 0) >= 0.01);
       const x = {
         water: g('precipitation'), tempRaw: g('temperature_2m'), temp700F: g('temperature_700hPa'),
         app: g('apparent_temperature'), rh: g('relative_humidity_2m'), ws: g('wind_speed_10m'),
@@ -253,7 +269,7 @@ function build({ data }) {
       for (const mb of members) {
         if (ei == null || mb.p[ei] == null || mb.t[ei] == null) continue;
         const ml = Math.min(7, mb.ens.maxLead);
-        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, roll, mb.ens.parent, 7, t) },
+        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, roll, mb.ens.parent, 7, t, mb.p[ei] >= 0.01) },
           factorAt(calib, mb.ens.parent, ml) * directionAt(calib, mb.ens.parent, sector));
         s += r.snow; w += r.water;
       }
@@ -292,6 +308,13 @@ function build({ data }) {
     };
   });
 
+  // Share of the water that falls as snow, weighted by how much falls each hour (null when dry)
+  const wetFrac = hs => {
+    let w = 0, s = 0;
+    for (const h of hs) if (h.water > 0 && h.frac != null) { w += h.water; s += h.water * h.frac; }
+    return w >= 0.005 ? s / w : null;
+  };
+
   // Per-member snow by ski day and by 12-hour period
   const memberDay = members.map(() => ({}));
   const memberPeriod = members.map(() => ({}));
@@ -304,7 +327,7 @@ function build({ data }) {
         const w = mb.p[i], tf = mb.t[i];
         if (w == null || tf == null) return;
         const ml = Math.min(lead, mb.ens.maxLead);
-        const s = SNOW.hour({ water: w, tempF: tf + tempBiasAt(calib, roll, mb.ens.parent, ml, t) },
+        const s = SNOW.hour({ water: w, tempF: tf + tempBiasAt(calib, roll, mb.ens.parent, ml, t, w >= 0.01) },
           factorAt(calib, mb.ens.parent, ml) * directionAt(calib, mb.ens.parent, flowSector(flowDeg[dateOf(t)]))).snow;
         memberDay[j][day] = (memberDay[j][day] || 0) + s;
         memberPeriod[j][per] = (memberPeriod[j][per] || 0) + s;
@@ -342,6 +365,7 @@ function build({ data }) {
     days.push({
       cum: runs.length >= 10 ? { p10: SNOW.quantile(runs, 0.1), p90: SNOW.quantile(runs, 0.9) } : null,
       date, snow: covered(h => h.snow) ? sum(h => h.snow) : null, water: covered(h => h.water) ? sum(h => h.water) : null,
+      frac: wetFrac(hs),
       byModel, rawWater, sector: flowSector(flowDeg[date]),
       nws: covered(h => h.nwsSnow) && hs.filter(h => h.nwsSnow != null).length >= 18 ? sum(h => h.nwsSnow) : null,
       ens: spread(memberDay, date),
@@ -371,7 +395,7 @@ function build({ data }) {
       key: pk, date: pk.slice(0, 10), isDay,
       tempF: temps.length ? (isDay ? Math.max(...temps) : Math.min(...temps)) : null,
       app: apps.length ? (isDay ? Math.max(...apps) : Math.min(...apps)) : null,
-      snow, water, frac: mean(h => h.frac), chance,
+      snow, water, frac: wetFrac(hs), chance,
       slr: slrHours.length ? slrHours.reduce((s, h) => s + h.slr * h.snow, 0) / slrHours.reduce((s, h) => s + h.snow, 0) : null,
       snowLevel: mean(h => h.snowLevel), fz: mean(h => h.fz),
       rh: mean(h => h.rh), ws: mean(h => h.ws), wd: SNOW.blendDirection(Object.fromEntries(hs.map((h, i) => [i, h.wd])), Object.fromEntries(hs.map((h, i) => [i, h.ws || 0.1]))),
@@ -388,6 +412,6 @@ function build({ data }) {
 
 // When imported as a module (the worker), these become globals as they already are in the browser
 Object.assign(globalThis, {
-  POINT, ATWATER, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
+  POINT, ATWATER, loadResorts, resortById, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
   localKey, dateOf, hourOf, addDays, dow, dom, skiDay, getJSON, omQuery, fetchAll, build,
 });

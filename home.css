@@ -36,21 +36,8 @@
 .totals span { color: var(--muted); font-size: 11px; }
 .totals .obs b { color: var(--muted); }
 
-.chart {
-  /* always wider than tall: grows with the width, capped so it never becomes a tower */
-  height: clamp(150px, 30vw, 240px);
-  display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; position: relative;
-}
-.col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.col .v { font-size: 11px; font-weight: 700; height: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.col .area { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
-.col .area i { display: block; width: 78%; background: var(--s1); border-radius: 3px 3px 0 0; min-height: 2px; }
-.col .area i.powder { background: var(--powder); }
-.col .area em { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: #cfd8e3; opacity: 0.7; }
-.col .d { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.25; margin-top: 3px; }
-.col .d b { color: var(--text); font-weight: 600; }
-.col.wk { border-left: 1px dashed var(--line); }
-.col.today .d b { color: var(--accent); }
+.chart { --sb-h: clamp(150px, 30vw, 240px); }
+#legend { margin-top: 8px; }
 .note { color: var(--muted); font-size: 11px; margin: 6px 0 0; }
 
 .doors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

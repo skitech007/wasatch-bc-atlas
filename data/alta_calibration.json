@@ -1,14 +1,14 @@
 {
   "what": "How each model misses at Alta, per lead day (forecast made N days ahead).",
-  "observed": "NRCS SNOTEL 1308:UT:SNTL (Atwater, Alta, 8,750 ft): daily accumulated precipitation (differenced) and hourly air temperature",
-  "forecast": "Open-Meteo Previous Runs API; precipitation at 40.5884, -111.6386, 3,016 m; temperature at the Atwater site, 2,667 m",
+  "observed": "NRCS SNOTEL 1308:UT:SNTL (Atwater, 8,750 ft): daily accumulated precipitation (differenced) and hourly air temperature",
+  "forecast": "Open-Meteo Previous Runs API; precipitation at 40.5884, -111.6386, 3,016 m; temperature at the Atwater SNOTEL site, 2,667 m",
   "flow": "Daily speed-weighted 700 mb wind direction from Open-Meteo archived short-range GFS",
   "seasons": [
     "2024-11-15 to 2025-04-15",
     "2025-11-15 to 2026-04-15"
   ],
   "observed_in": 66.9,
-  "generated": "2026-10-22",
+  "generated": "2026-10-29",
   "factors": {
     "ncep_nbm_conus": {
       "1": 0.976,
@@ -478,14 +478,14 @@
         -0.61
       ],
       "9": [
-        0.45,
-        0.61,
-        2.01,
-        -3.0,
-        -4.67,
-        -6.37,
-        -4.69,
-        -0.23
+        0.23,
+        0.25,
+        1.76,
+        -3.05,
+        -4.62,
+        -6.38,
+        -4.68,
+        -0.43
       ],
       "10": [
         1.3,
@@ -600,14 +600,14 @@
         -1.57
       ],
       "9": [
-        -1.42,
-        -1.27,
-        -0.86,
-        0.14,
-        -2.12,
-        -3.73,
-        -3.61,
-        -0.68
+        -1.37,
+        -1.2,
+        -0.82,
+        0.17,
+        -2.01,
+        -3.7,
+        -3.64,
+        -0.78
       ],
       "10": [
         0.82,
@@ -722,14 +722,14 @@
         2.13
       ],
       "9": [
-        2.04,
-        2.25,
-        2.29,
-        -1.07,
-        -3.12,
-        -4.06,
-        -0.6,
-        1.66
+        2.1,
+        2.2,
+        2.32,
+        -1.01,
+        -3.03,
+        -4.02,
+        -0.55,
+        1.59
       ],
       "10": [
         2.11,
@@ -844,14 +844,14 @@
         1.54
       ],
       "9": [
-        2.46,
-        2.01,
-        3.88,
-        2.02,
-        0.57,
-        -0.81,
-        -0.11,
-        2.92
+        2.16,
+        1.66,
+        3.57,
+        1.66,
+        0.34,
+        -0.99,
+        -0.34,
+        2.61
       ],
       "10": [
         2.97,
@@ -885,27 +885,46 @@
       ]
     }
   },
-  "temperature_bias_note": "observed \u2212 forecast \u00b0F by calendar month and 3-hour MST block (0 = midnight\u20133 am), 1-day-ahead forecasts at Atwater, all months from 2024-03 to 45 days before generation",
+  "temperature_bias_note": "observed \u2212 forecast \u00b0F by calendar month and 3-hour MST block (0 = midnight\u20133 am), 1-day-ahead forecasts at the Atwater SNOTEL, all months from 2024-03 to 45 days before generation",
   "temperature_mae_f": {
     "ncep_nbm_conus": {
-      "before": 4.67,
-      "after": 3.53,
-      "hours": 16670
+      "before": 4.66,
+      "after": 3.52,
+      "hours": 16838
     },
     "ecmwf_ifs025": {
-      "before": 3.28,
-      "after": 2.47,
-      "hours": 21968
+      "before": 3.27,
+      "after": 2.46,
+      "hours": 22136
     },
     "gfs_global": {
       "before": 3.05,
-      "after": 2.36,
-      "hours": 21968
+      "after": 2.35,
+      "hours": 22136
     },
     "gem_seamless": {
-      "before": 3.22,
+      "before": 3.21,
       "after": 2.43,
-      "hours": 21878
+      "hours": 22046
     }
-  }
+  },
+  "temperature_wet_adjust": {
+    "ncep_nbm_conus": {
+      "adjust": -2.66,
+      "hours": 1968
+    },
+    "ecmwf_ifs025": {
+      "adjust": -1.89,
+      "hours": 1080
+    },
+    "gfs_global": {
+      "adjust": -1.54,
+      "hours": 1563
+    },
+    "gem_seamless": {
+      "adjust": -0.15,
+      "hours": 1674
+    }
+  },
+  "temperature_wet_note": "mean observed \u2212 (forecast + month table) \u00b0F in November\u2013April hours when the model forecast 0.01\"+ of precipitation; added to the correction in those hours"
 }

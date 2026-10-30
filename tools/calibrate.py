@@ -1,6 +1,6 @@
-"""Measure how each weather model misses at Alta, for forecasts made 1 to 7 days ahead.
+"""Measure how each weather model misses at one resort, for forecasts made 1 to 7 days ahead.
 
-Three corrections, all against the NRCS Atwater SNOTEL (1308:UT:SNTL, 8,750 ft, in Alta):
+Three corrections, all against the resort's SNOTEL from data/resorts.json (Alta: Atwater, 1308:UT:SNTL):
   1. Precipitation: observed ÷ forecast water, per model and lead day.
   2. Storm direction: how that ratio changes with the 700 mb wind direction (NW, W, SW, other),
      per model, shrunk toward 1 when a direction has few wet days.
@@ -11,17 +11,22 @@ Three corrections, all against the NRCS Atwater SNOTEL (1308:UT:SNTL, 8,750 ft, 
 
 Forecasts come from Open-Meteo's Previous Runs archive (what each model said N days before);
 past 700 mb wind direction from Open-Meteo's archived short-range GFS. Wind can't be calibrated
-here (no SNOTEL near Alta measures wind); the nightly worker learns it from Hidden Peak instead.
-Writes data/alta_calibration.json.
+here (SNOTELs don't measure wind); for Alta the nightly worker learns it from Hidden Peak instead.
+Writes data/<resort>_calibration.json.
 
-Run: python3 -I tools/calibrate_alta.py
+Run: python3 -I tools/calibrate.py alta    (or snowbird, brighton, solitude)
 """
-import json, math, time, urllib.request, datetime as dt, pathlib
+import json, math, sys, time, urllib.request, datetime as dt, pathlib
 from collections import defaultdict
 
-FC_LAT, FC_LON, FC_ELEV_M = 40.5884, -111.6386, 3016   # 9,895 ft, OpenSnow's Alta forecast point
-ST_LAT, ST_LON, ST_ELEV_M = 40.5912, -111.6378, 2667   # Atwater SNOTEL, 8,750 ft
-STATION = '1308:UT:SNTL'
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+RESORT = next(r for r in json.loads((ROOT / 'data' / 'resorts.json').read_text())['resorts']
+              if r['id'] == (sys.argv[1] if len(sys.argv) > 1 else 'alta'))
+FT = 0.3048
+FC_LAT, FC_LON, FC_ELEV_M = RESORT['point']['lat'], RESORT['point']['lon'], round(RESORT['point']['ft'] * FT)
+SN = RESORT['snotel']
+ST_LAT, ST_LON, ST_ELEV_M = SN['lat'], SN['lon'], round(SN['ft'] * FT)
+STATION = SN['triplet']
 MODELS = ['ncep_nbm_conus', 'ecmwf_ifs025', 'gfs_global', 'gem_seamless']
 LEADS = range(1, 8)
 # Winter months only, when Alta's precipitation is mostly snow. The Previous Runs archive starts in 2024.
@@ -170,6 +175,10 @@ for m in MODELS:
 # ---------- temperature ----------
 # Every month in the archive, in ~2-month chunks (USDA's hourly endpoint errors on long ranges)
 temp_err = {m: defaultdict(list) for m in MODELS}   # (month, 3-hour block) -> observed − forecast
+# Storm hours (the model has 0.01"+ that hour), November to April: the sensor reads closer to the
+# models while it snows than on clear nights, and those are the hours that decide rain or snow
+wet_err = {m: [] for m in MODELS}                     # (month, block, observed − forecast)
+WET_MONTHS = {11, 12, 1, 2, 3, 4}
 # Leave out the last 45 days: the rolling correction covers recent weeks, and it keeps the scorecard's
 # reconstructed days (tools/backfill_scorecard.mjs) out of the data they're tested against
 a, last = TEMP_START, dt.date.today() - dt.timedelta(days=45)
@@ -177,6 +186,9 @@ while a <= last:
     b = min(a + dt.timedelta(days=60), last)
     tobs = observed_temps(a.isoformat(), b.isoformat())
     h = previous_runs(ST_LAT, ST_LON, ST_ELEV_M, 'temperature_2m', a.isoformat(), b.isoformat(), '&temperature_unit=fahrenheit')
+    hp = get('https://previous-runs-api.open-meteo.com/v1/forecast'
+             f'?latitude={ST_LAT}&longitude={ST_LON}&elevation={ST_ELEV_M}&start_date={a}&end_date={b}'
+             f'&hourly=precipitation_previous_day1&models={",".join(MODELS)}&precipitation_unit=inch&timezone=GMT')['hourly']
     for i, t in enumerate(h['time']):
         o = tobs.get(t)
         if o is None:
@@ -186,6 +198,9 @@ while a <= last:
             f = h[f'temperature_2m_previous_day1_{m}'][i]
             if f is not None:
                 temp_err[m][(local.month, local.hour // 3)].append(o - f)
+                p = hp[f'precipitation_previous_day1_{m}'][i]
+                if p is not None and p >= 0.01 and local.month in WET_MONTHS:
+                    wet_err[m].append((local.month, local.hour // 3, o - f))
     a = b + dt.timedelta(days=1)
 print('temperature done')
 temp_bias, temp_mae = {}, {}
@@ -194,11 +209,16 @@ for m in MODELS:
     allE = [x for e in temp_err[m].values() for x in e]
     after = [x - temp_bias[m][str(mo)][blk] for (mo, blk), e in temp_err[m].items() for x in e]
     temp_mae[m] = {'before': round(sum(map(abs, allE)) / len(allE), 2), 'after': round(sum(map(abs, after)) / len(after), 2), 'hours': len(allE)}
+# What's left after the month table in storm hours: added on top of it whenever the model has precipitation
+wet_adjust = {}
+for m in MODELS:
+    left = [e - temp_bias[m][str(mo)][blk] for mo, blk, e in wet_err[m]]
+    wet_adjust[m] = {'adjust': round(sum(left) / len(left), 2) if len(left) >= 50 else 0.0, 'hours': len(left)}
 
 out = {
-    'what': "How each model misses at Alta, per lead day (forecast made N days ahead).",
-    'observed': f'NRCS SNOTEL {STATION} (Atwater, Alta, 8,750 ft): daily accumulated precipitation (differenced) and hourly air temperature',
-    'forecast': 'Open-Meteo Previous Runs API; precipitation at 40.5884, -111.6386, 3,016 m; temperature at the Atwater site, 2,667 m',
+    'what': f"How each model misses at {RESORT['name']}, per lead day (forecast made N days ahead).",
+    'observed': f"NRCS SNOTEL {STATION} ({SN['name']}, {SN['ft']:,.0f} ft): daily accumulated precipitation (differenced) and hourly air temperature",
+    'forecast': f"Open-Meteo Previous Runs API; precipitation at {FC_LAT}, {FC_LON}, {FC_ELEV_M:,} m; temperature at the {SN['name']} SNOTEL site, {ST_ELEV_M:,} m",
     'flow': 'Daily speed-weighted 700 mb wind direction from Open-Meteo archived short-range GFS',
     'seasons': [f'{a} to {b}' for a, b in SEASONS],
     'observed_in': round(observed_total, 2),
@@ -211,13 +231,15 @@ out = {
     'direction_multipliers': direction,
     'direction_detail': direction_detail,
     'temperature_bias_month_3h': temp_bias,
-    'temperature_bias_note': 'observed − forecast °F by calendar month and 3-hour MST block (0 = midnight–3 am), 1-day-ahead forecasts at Atwater, all months from 2024-03 to 45 days before generation',
+    'temperature_bias_note': f"observed − forecast °F by calendar month and 3-hour MST block (0 = midnight–3 am), 1-day-ahead forecasts at the {SN['name']} SNOTEL, all months from 2024-03 to 45 days before generation",
     'temperature_mae_f': temp_mae,
+    'temperature_wet_adjust': wet_adjust,
+    'temperature_wet_note': 'mean observed − (forecast + month table) °F in November–April hours when the model forecast 0.01"+ of precipitation; added to the correction in those hours',
 }
-path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'alta_calibration.json'
+path = ROOT / 'data' / f"{RESORT['id']}_calibration.json"
 path.write_text(json.dumps(out, indent=2) + '\n')
 for m in MODELS:
     print(f'{m:16}', ' '.join(f'd{n}:×{factors[m][n]:.2f}' for n in LEADS))
     print(' ' * 17 + 'flow ' + ' '.join(f'{s}:×{direction[m][s]:.2f}(raw {direction_detail[m][s]["raw"]:.2f}, {direction_detail[m][s]["wet_days"]}d)' for s in direction[m]))
     print(' ' * 17 + 'temp Jan ' + ' '.join(f'{v:+.1f}' for v in temp_bias[m]['1']) + ' | Oct ' + ' '.join(f'{v:+.1f}' for v in temp_bias[m]['10'])
-          + f'  MAE {temp_mae[m]["before"]}→{temp_mae[m]["after"]}')
+          + f'  MAE {temp_mae[m]["before"]}→{temp_mae[m]["after"]}  storm hours {wet_adjust[m]["adjust"]:+.1f} ({wet_adjust[m]["hours"]} h)')

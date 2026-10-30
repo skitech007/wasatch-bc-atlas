@@ -146,3 +146,36 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .alta-marker { display: flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; }
 .alta-marker img { width: 20px; height: 20px; display: block; }
 .summary-badge { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; }
+
+/* ---------- daily snow bars (snowbars.js), shared by home, resorts and forecast pages ---------- */
+:root { --c-snow: #3987e5; --c-mix: #9085e9; --c-rain: #3fae7a; --c-pow: #f08a24; --c-none: #3a4552; }
+.sb { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; height: var(--sb-h, 170px); }
+.sb-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.sb-v { font-size: 11px; font-weight: 700; height: 15px; line-height: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sb-v small { font-size: 9px; font-weight: 600; color: var(--c-rain); }
+.sb-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.sb-area i { display: block; width: 80%; max-width: 36px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--c-none); }
+.sb-area i.t-snow { background: var(--c-snow); }
+.sb-area i.t-mix { background: var(--c-mix); }
+.sb-area i.t-rain { background: var(--c-rain); }
+.sb-area i.t-pow { background: var(--c-pow); }
+.sb-d { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.25; margin-top: 3px; }
+.sb-d b { color: var(--text); font-weight: 600; }
+.sb-col.wk { border-left: 1px dashed var(--line); }
+.sb-col.today .sb-d b { color: var(--accent); }
+.sb.compact { gap: 2px; }
+.sb.compact .sb-v { font-size: 10px; }
+.sb.compact .sb-area i { width: 76%; border-radius: 2px 2px 0 0; }
+.sb-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.sb-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.sb-legend i.t-snow { background: var(--c-snow); }
+.sb-legend i.t-mix { background: var(--c-mix); }
+.sb-legend i.t-rain { background: var(--c-rain); }
+.sb-legend i.t-pow { background: var(--c-pow); }
+/* a snow amount as a solid block, coloured like the bars */
+.chip { display: inline-block; min-width: 44px; padding: 3px 8px; border-radius: 6px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.chip.t-snow { background: var(--c-snow); color: #fff; }
+.chip.t-mix { background: var(--c-mix); color: #120f2a; }
+.chip.t-rain { background: var(--c-rain); color: #06170f; }
+.chip.t-pow { background: var(--c-pow); color: #1d0e00; }
+.chip.t-none { color: var(--muted); font-weight: 600; }

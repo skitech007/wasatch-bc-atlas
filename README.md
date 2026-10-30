@@ -12,7 +12,9 @@ Then open http://localhost:8080.
 
 ## Files
 
-- `index.html`, `home.css`, `home.js`: home screen, Alta's 15-day snow fitted to one phone screen, then Backcountry and Resort
+- `index.html`, `home.css`, `home.js`: home screen, Alta's 15-day snow fitted to one phone screen, then Backcountry and Resorts
+- `resorts.html`, `resorts.css`, `resorts.js`: the four Cottonwood resorts as cards (last 24 h, 15-day bars, next storm, opening day); starred ones sort first, each opens its forecast
+- `snowbars.js`: the daily snow bars shared by home, resorts and forecast pages, coloured by what falls (snow, mix, rain, 6"+ day)
 - `backcountry.html`, `backcountry.css`, `app.css`: the 3D map; phone bottom sheet with Tours / Plan / Map tabs
 - `app.js`: map, layers, avalanche rose, route drawing, Cody Townsend-style route checks, tours and their guides, pins, GPX
 - `risk.js`, `avalanche.js`: the Avalanche Risk sheet (Day / Week / Month) and its red-flag thresholds
@@ -22,10 +24,11 @@ Then open http://localhost:8080.
 - `dem.js`: terrain maths shared by the page and workers (Terrarium decode, Horn slope/aspect)
 - `tile-worker.js`: renders slope / aspect / rose-match tiles off the main thread
 - `lib/`: MapLibre GL JS 5.24.0, unchanged from the npm package (BSD-3 licence alongside), served with the app so the map doesn't depend on a CDN
-- `forecast.html`, `forecast.css`, `forecast.js`: the Alta snow forecast page (summary, day/night, hourly, models, observed, NWS discussion)
-- `forecast-data.js`: fetches and blends the forecast data; shared by the forecast page and the map panel
+- `forecast.html`, `forecast.css`, `forecast.js`: one resort's snow forecast, `forecast.html?r=alta|snowbird|brighton|solitude` (summary, live cams, day/night, hourly, models, observed, NWS discussion)
+- `forecast-data.js`: fetches and blends the forecast data for a resort; shared by the forecast, resorts and home pages and the map panel
+- `data/resorts.json`: each resort's forecast point, SNOTEL, NWS grid, base/peak, opening day and cams, with sources
 - `snow.js`: snow maths (rain/snow split, Kuchera snow ratio, weighted blends)
-- `tools/calibrate_alta.py`: measures each model's Alta corrections (water by lead day, storm direction, temperature); writes `data/alta_calibration.json`
+- `tools/calibrate.py <resort>`: measures each model's corrections at that resort's SNOTEL (water by lead day, storm direction, temperature by month and in storm hours); writes `data/<resort>_calibration.json`
 - `scorecard.html`, `scorecard.js`: how accurate the forecast has been
 - `worker/index.js`, `wrangler.jsonc`: Cloudflare Worker that serves the site and, each morning, saves the forecast, Atwater readings and Hidden Peak wind (KV), learns the wind correction, and serves `/api/scorecard`, `/api/corrections`, `/api/avalanche` (UAC Salt Lake danger and history from avalanche.org, plus saved Hidden Peak wind) and `/api/uphill` (Alta's uphill-travel status, read off alta.com/uphill-travel)
 - `data/`: data snapshots, each with its source recorded inside the file
@@ -52,12 +55,15 @@ No invented data. Every number comes from one of these sources:
 | Forecast zones | UGRC SGID, UAC Forecast Zones |
 | Route ratings and stats | Utah Avalanche Center route pages (`data/uac_routes.json`) |
 | Elevation bands | UAC Salt Lake advisories: <8,000′, 8,000–9,500′, >9,500′ |
-| Alta forecast models | Open-Meteo forecast and ensemble APIs (NBM, ECMWF, GFS, GEM; ECMWF and GFS ensembles), fetched live |
-| Alta correction factors | Open-Meteo Previous Runs API vs NRCS SNOTEL 1308 Atwater, winters 2024–25 and 2025–26 (`data/alta_calibration.json`) |
-| Snow level, NWS snow, alerts, forecast discussion | NWS api.weather.gov, grid SLC 108,167 |
-| Observed snow at Alta | NRCS SNOTEL 1308 Atwater, fetched live |
-| Temperature and storm-direction corrections | Open-Meteo Previous Runs (temperature) and archived GFS 700 mb wind vs SNOTEL 1308 Atwater, winters 2024–25 and 2025–26 |
-| Wind correction | Learned nightly from NWS station HDP (Hidden Peak) vs saved forecasts |
+| Resort forecast models | Open-Meteo forecast and ensemble APIs (NBM, ECMWF, GFS, GEM; ECMWF and GFS ensembles), fetched live |
+| Correction factors | Open-Meteo Previous Runs API vs each resort's SNOTEL, winters 2024–25 and 2025–26 (`data/<resort>_calibration.json`): 1308 Atwater (Alta), 766 Snowbird, 366 Brighton (Brighton and Solitude, which has none of its own) |
+| Resort forecast points | Alta: the original point (40.5884, −111.6386, 9,895 ft). Others: on the OpenStreetMap ski-area outline at the height halfway between base and peak, from AWS Terrain Tiles |
+| Base and peak heights, opening days | Ski Utah resort pages and its 2026–27 opening-dates list (Oct 1, 2026) |
+| Live cams | Brighton's and Solitude's own YouTube live streams (played in YouTube's player); Alta's and Snowbird's cams are pictures on their own sites, so the app links to those pages |
+| Snow level, NWS snow, alerts, forecast discussion | NWS api.weather.gov, each resort's grid cell (Alta SLC 108,167; Snowbird 107,166; Brighton 110,166; Solitude 109,167) |
+| Observed snow | Each resort's SNOTEL (above), fetched live |
+| Temperature and storm-direction corrections | Open-Meteo Previous Runs (temperature, and precipitation to find storm hours) and archived GFS 700 mb wind vs each resort's SNOTEL, winters 2024–25 and 2025–26 |
+| Wind correction (Alta only) | Learned nightly from NWS station HDP (Hidden Peak) vs saved Alta forecasts |
 | Avalanche danger and history | Utah Avalanche Center via the avalanche.org public API (overall rating only; the rose and problems need a UAC API token) |
 | Red-flag thresholds | avalanche.org "Loading / Loading Rate" (12" new snow or 1" water in 24 h); Avalanche Canada glossary, wind transport (25–40 km/h ≈ 15 mph+) |
 | Terrain class (ATES) and runout reach | AutoATES v2.0 method and default thresholds (Toft et al. 2024, github.com/AutoATES/AutoATES-v2.0), simplified; USFS/NLCD Tree Canopy Cover 2025 |

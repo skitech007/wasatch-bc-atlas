@@ -1,0 +1,66 @@
+{
+  "what": "The four Cottonwood Canyons resorts: forecast point, snow sensor, NWS grid, opening day and live cams",
+  "sources": {
+    "base_peak_ft": "Ski Utah resort pages, statistics (skiutah.com/resorts/<name>), read 2026-10-29",
+    "point": "Alta: the original forecast point (40.5884, -111.6386, 9,895 ft). Others: on the resort's OpenStreetMap ski-area outline (ways 1023308078, 682230007, 682230006), at the height halfway between its base and peak (AWS Terrain Tiles, Terrarium z13), nearest the outline's centre",
+    "snotel": "NRCS AWDB station list, nearest active SNOTEL; Solitude has none of its own, so it uses Brighton's, 2.4 km east",
+    "nws": "api.weather.gov/points/<lat>,<lon>",
+    "opening": "Ski Utah, '2026–27 Utah Ski Resort Opening Dates' (Oct 1, 2026), skiutah.com/blog/authors/yeti/utah-ski-resort-opening-dates/",
+    "cams": "Each resort's own webcam page, read 2026-10-29. Brighton and Solitude publish their cams as YouTube live streams (titles from YouTube oEmbed); Alta's and Snowbird's are pictures on their own sites, so the app links to those pages"
+  },
+  "resorts": [
+    {
+      "id": "alta", "name": "Alta", "canyon": "Little Cottonwood",
+      "base_ft": 8530, "peak_ft": 11068,
+      "point": { "lat": 40.5884, "lon": -111.6386, "ft": 9895 },
+      "snotel": { "triplet": "1308:UT:SNTL", "name": "Atwater", "ft": 8750, "lat": 40.5912, "lon": -111.6377, "km": 0.3 },
+      "nws": "SLC/108,167",
+      "opening": "2026-11-20",
+      "site": "https://www.alta.com",
+      "cams": { "page": "https://www.alta.com/weather", "label": "Alta's cams: snow stake (cleared 4 am and 4 pm), Baldy, Superior, Sugarloaf, Albion", "youtube": [] }
+    },
+    {
+      "id": "snowbird", "name": "Snowbird", "canyon": "Little Cottonwood",
+      "base_ft": 7760, "peak_ft": 11000,
+      "point": { "lat": 40.5666, "lon": -111.6561, "ft": 9380 },
+      "snotel": { "triplet": "766:UT:SNTL", "name": "Snowbird", "ft": 9170, "lat": 40.5691, "lon": -111.6585, "km": 0.3 },
+      "nws": "SLC/107,166",
+      "opening": "2026-11-27",
+      "site": "https://www.snowbird.com",
+      "cams": { "page": "https://www.snowbird.com/the-mountain/webcams/snowstake-webcam/", "label": "Snowbird's snow stake cam, plus Hidden Peak and the rest on its webcam page", "youtube": [] }
+    },
+    {
+      "id": "brighton", "name": "Brighton", "canyon": "Big Cottonwood",
+      "base_ft": 8755, "peak_ft": 10500,
+      "point": { "lat": 40.5883, "lon": -111.5737, "ft": 9628 },
+      "snotel": { "triplet": "366:UT:SNTL", "name": "Brighton", "ft": 8790, "lat": 40.5994, "lon": -111.5817, "km": 1.4 },
+      "nws": "SLC/110,166",
+      "opening": null,
+      "site": "https://www.brightonresort.com",
+      "cams": { "page": "https://www.brightonresort.com/conditions", "label": "All of Brighton's cams", "youtube": [
+        { "id": "Zv8HYwaXjBg", "name": "Top of Crest" },
+        { "id": "uZ24vqOWEkQ", "name": "Molly Greens view" },
+        { "id": "N-d3MuOagLg", "name": "Milly Express" },
+        { "id": "vMwQRjlfqtA", "name": "Explorer lift" },
+        { "id": "4a-3iEM7bHk", "name": "Parking lot" }
+      ] }
+    },
+    {
+      "id": "solitude", "name": "Solitude", "canyon": "Big Cottonwood",
+      "base_ft": 7994, "peak_ft": 10488,
+      "point": { "lat": 40.6119, "lon": -111.6041, "ft": 9241 },
+      "snotel": { "triplet": "366:UT:SNTL", "name": "Brighton", "ft": 8790, "lat": 40.5994, "lon": -111.5817, "km": 2.4 },
+      "nws": "SLC/109,167",
+      "opening": "2026-11-20",
+      "site": "https://www.solitudemountain.com",
+      "cams": { "page": "https://www.solitudemountain.com/mountain-and-village/webcams", "label": "All of Solitude's cams", "youtube": [
+        { "id": "lkEM6EC8NVA", "name": "Snow stake" },
+        { "id": "ta-4QZbfMXc", "name": "Honeycomb Canyon" },
+        { "id": "Lnznapxh2xM", "name": "Sunshine Bowl" },
+        { "id": "xNER0JHrqLg", "name": "Powderhorn" },
+        { "id": "rUXoOLxKKX4", "name": "Summit Express lift line" },
+        { "id": "gfHReYIuydU", "name": "Moonbeam parking lot" }
+      ] }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
-// Alta snow forecast page: renders the summary, day/night, hourly, model and observed views.
-// Data and maths come from forecast-data.js.
+// Resort snow forecast page (forecast.html?r=alta|snowbird|brighton|solitude): renders the summary,
+// day/night, cams, hourly, model and observed views. Data and maths come from forecast-data.js.
 
 // ---------- shared bits ----------
 const $ = id => document.getElementById(id);
@@ -7,21 +7,9 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const r0 = v => v == null ? '–' : Math.round(v).toString();
 const in2 = v => v == null ? '–' : v.toFixed(2);
 const isPowder = v => v != null && v >= POWDER_IN - 0.5;
-// Likely range: the ensembles' middle half, scaled so it sits around the blend. The blend sets
-// the amount, the ensembles say how sure we are.
-function likely(ens, blend) {
-  if (!ens || blend == null) return null;
-  return [Math.max(0, blend - (ens.p50 - ens.p25)), blend + (ens.p75 - ens.p50)];
-}
-function snowRange(ens, blend) {
-  const r = likely(ens, blend);
-  if (r) {
-    const lo = Math.round(r[0]), hi = Math.round(r[1]);
-    if (hi <= 0) return '0"';
-    return lo === hi ? `${lo}"` : `${lo}–${hi}"`;
-  }
-  return blend == null ? '–' : `${Math.round(blend)}"`;
-}
+const ft = v => Math.round(v).toLocaleString('en-US');
+const RESORT_ID = new URLSearchParams(location.search).get('r') || 'alta';
+let R = null;   // this page's resort, from data/resorts.json
 function icon({ snow, water, frac, cc, isDay }) {
   if (snow >= 0.1 && frac >= 0.5) return ['🌨️', 'Snow'];
   if (water >= 0.01 && frac < 0.5) return ['🌧️', 'Rain'];
@@ -38,48 +26,36 @@ const chanceBg = c => c == null || c < 5 ? '' : `background: color-mix(in oklab,
 // ---------- renderers ----------
 function renderSummary(b) {
   const groups = [[0, 5, 'Next 1–5 days'], [5, 10, 'Next 6–10 days'], [10, 15, 'Next 11–15 days']];
-  const max = Math.max(4, ...b.days.map(d => Math.max(d.snow || 0, likely(d.ens, d.snow)?.[1] || 0)));
+  const max = Math.max(4, ...b.days.map(d => d.snow || 0));
   $('summary').innerHTML = groups.map(([a, z, label]) => {
     const ds = b.days.slice(a, z);
     const tot = ds.reduce((s, d) => s + (d.snow || 0), 0);
     const anyMissing = ds.some(d => d.snow == null);
     return `<section class="sgroup">
       <header><span>${label}</span><b>${Math.round(tot)}"${anyMissing ? '<sup title="Some models end before these days">*</sup>' : ''}</b></header>
-      <div class="bars">${ds.map(d => {
-        const v = d.snow || 0, h = Math.max(2, 100 * v / max);
-        const tip = `${dow(d.date)} ${dom(d.date)}: ${v.toFixed(1)}" blended`
-          + (d.ens ? ` · likely ${snowRange(d.ens, d.snow)} · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
-        // Whisker: the likely range
-        const lr = likely(d.ens, d.snow);
-        const wh = lr && lr[1] >= 0.5
-          ? `<em style="bottom:${100 * lr[0] / max}%;height:${Math.max(1, 100 * (lr[1] - lr[0]) / max)}%"></em>` : '';
-        return `<div class="bar" tabindex="0" data-tip="${esc(tip)}">
-          <span class="bv">${v >= 0.5 ? Math.round(v) + '"' : v > 0.05 ? 'T' : ''}</span>
-          <div class="area"><i class="${isPowder(v) ? 'powder' : ''}" style="height:${h}%"></i>${wh}</div>
-          <span class="bd">${dow(d.date)[0]}<br>${dom(d.date)}</span>
-        </div>`;
-      }).join('')}</div>
+      ${snowBars(ds, { max, marks: [], todayFirst: a === 0, tipAttr: 'data-tip' })}
     </section>`;
   }).join('');
+  $('legend').innerHTML = snowLegend();
   // Powder odds strip
   $('odds').innerHTML = b.days.map(d => {
     const p = d.ens?.pPowder;
     return `<div class="odd" style="${chanceBg(p)}" data-tip="${esc(`${dow(d.date)} ${dom(d.date)}: ${p == null ? 'no ensemble' : Math.round(p) + '% of ' + d.ens.n + ' ensemble runs give ' + POWDER_IN + '"+'}`)}">
-      <span>${p == null ? '–' : Math.round(p) + '%'}</span></div>`;
+      <span>${p == null ? '–' : Math.round(p)}</span></div>`;
   }).join('');
 }
 
 function renderPeriods(b) {
   const rows = b.periods.map(p => {
     const [ic, icTitle] = icon(p);
-    const rangeTxt = snowRange(p.ens, p.snow);
+    const rangeTxt = rangeText(p.ens, p.snow);
     const blended = p.snow >= 0.05 ? `${p.snow.toFixed(1)}"` : '';
-    const barW = Math.min(100, 100 * (likely(p.ens, p.snow)?.[1] ?? p.snow) / 10);
-    const cls = isPowder(p.snow) ? 'powder' : p.frac != null && p.frac < 0.9 && p.water >= 0.01 ? 'mixed' : '';
+    // Under half an inch likely, the block stays plain text so the snowy periods stand out
+    const cls = (likelyRange(p.ens, p.snow)?.[1] ?? p.snow) >= 0.5 ? snowClass(p) : 'none';
     return `<tr class="${p.isDay ? 'day' : 'night'}">
       ${p.isDay || p === b.periods[0] ? `<th rowspan="${p.isDay && b.periods[b.periods.indexOf(p) + 1] ? 2 : 1}" class="pday">${dow(p.date)}<small>${dom(p.date)}</small></th>` : ''}
       <td class="pn">${p.isDay ? 'Day' : 'Night'}</td>
-      <td class="snowcell ${cls}"><i style="width:${barW}%"></i><b>${rangeTxt}</b><small>${blended}</small></td>
+      <td class="snowcell"><span class="chip t-${cls}" title="${PTYPE_NAME[precipType(p)]}">${rangeTxt}</span><small>${blended}</small></td>
       <td class="num">${r0(p.tempF)}°</td>
       <td class="ic" title="${icTitle}">${ic}</td>
       <td class="num">${p.slr ? Math.round(p.slr) + ':1' : '--'}</td>
@@ -146,9 +122,9 @@ function renderModels(b) {
   rows.push(`<tr class="ensrow"><th>Ensemble median <small>${b.memberCount} runs</small></th>
     ${b.days.map(d => `<td>${d.ens ? d.ens.p50.toFixed(1) : '·'}</td>`).join('')}<td class="tot">${Math.round(b.days.reduce((s, d) => s + (d.ens?.p50 || 0), 0))}"</td></tr>`);
   rows.push(`<tr class="ensrow"><th>Storm flow <small>700 mb wind</small></th>${b.days.map(d => `<td>${d.sector ? (d.sector === 'other' ? '·' : d.sector) : '·'}</td>`).join('')}<td></td></tr>`);
-  rows.push(`<tr class="blendrow"><th>Alta blend</th>${b.days.map(d => `<td class="${isPowder(d.snow) ? 'pw' : ''}">${d.snow == null ? '·' : d.snow.toFixed(1)}</td>`).join('')}
+  rows.push(`<tr class="blendrow"><th>${esc(R.name)} blend</th>${b.days.map(d => `<td class="${isPowder(d.snow) ? 'pw' : ''}">${d.snow == null ? '·' : d.snow.toFixed(1)}</td>`).join('')}
     <td class="tot">${Math.round(b.days.reduce((s, d) => s + (d.snow || 0), 0))}"</td></tr>`);
-  $('models').innerHTML = `<table class="mtable"><thead><tr><th>Snow by day, inches <small>(Alta-corrected)</small></th>
+  $('models').innerHTML = `<table class="mtable"><thead><tr><th>Snow by day, inches <small>(${esc(R.name)}-corrected)</small></th>
     ${b.days.map(d => `<th>${dow(d.date)[0]}<small>${dom(d.date)}</small></th>`).join('')}<th>${lastDay} days</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   renderCumulative(b);
 }
@@ -232,7 +208,7 @@ function renderObserved(data) {
     }).join('')}</div>
     <div class="bars obs">${last.map(x => `<div class="bar" data-tip="${esc(`${dow(x.date)} ${dom(x.date)}: depth ${x.depth ?? '–'}" (${x.change == null ? '–' : (x.change > 0 ? '+' : '') + x.change}") · water ${x.water == null ? '–' : x.water.toFixed(2)}" · ${x.temp ?? '–'}°F`)}">
       <span class="bv">${x.gain ? x.gain + '"' : ''}</span><div class="area"><i style="height:${Math.max(2, 100 * x.gain / max)}%"></i></div><span class="bd">${dow(x.date)[0]}<br>${dom(x.date)}</span></div>`).join('')}</div>
-    <p class="hint">New snow here is the rise in measured depth at the Atwater SNOTEL (8,750 ft, at Alta), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
+    <p class="hint">New snow here is the rise in measured depth at the ${esc(R.snotel.name)} SNOTEL (${ft(R.snotel.ft)} ft, ${R.snotel.km < 1 ? `at ${esc(R.name)}` : `${R.snotel.km} km from ${esc(R.name)}'s forecast point`}), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
 }
 
 function renderNws(data) {
@@ -247,9 +223,39 @@ function renderNws(data) {
     <details><summary>Full forecast discussion</summary><pre>${esc(afd)}</pre></details>`;
 }
 
+// The method write-up, with this resort's point, sensor and which corrections it has
+function methodHtml() {
+  const n = esc(R.name), st = `${esc(R.snotel.name)} SNOTEL`, pf = `${ft(R.point.ft)} ft`, alta = R.id === 'alta';
+  const where = alta ? `${n}'s forecast point (${R.point.lat}, ${R.point.lon}, ${pf})`
+    : `${n}'s forecast point (${R.point.lat}, ${R.point.lon}, ${pf}: on the mountain, halfway between the ${ft(R.base_ft)} ft base and ${ft(R.peak_ft)} ft peak)`;
+  const near = R.snotel.km < 1 ? `at ${n}` : `${R.snotel.km} km from the forecast point; ${n} has no SNOTEL of its own`;
+  return `<ol>
+    <li><b>Water.</b> Hourly precipitation from four weather models for ${where}, via <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>.</li>
+    <li><b>${n} correction.</b> The models smooth the Wasatch into blobs and miss how much falls at ${n}. For the winters of <span id="method-seasons"></span> (Nov 15 – Apr 15) we compared what each model forecast 1 to 7 days ahead with what fell at the ${st} (${ft(R.snotel.ft)} ft, ${near}), and multiply each model's water by its factor for that lead day (days 8–15 use day 7):
+      <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>1 day out</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead><tbody id="method-factors"></tbody></table></div>
+      Models with smaller day-to-day error after correction get more weight in the blend (hover a factor for details). Rerun <code>tools/calibrate.py ${R.id}</code> to refresh.</li>
+    <li><b>Storm direction.</b> ${alta ? 'Alta does best in northwest flow and the models know it least well.' : 'How much falls depends on the storm direction, which the models handle least well.'} Each day is labelled by its 700 mb (about 10,000 ft) wind: NW, W, SW or other. Over the same two winters each model's misses were split by that label, and its water is scaled again for the day's direction. Directions with few wet days are pulled toward no change:
+      <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>NW</th><th>W</th><th>SW</th><th>Other</th></tr></thead><tbody id="method-direction"></tbody></table></div></li>
+    <li><b>Temperature.</b> Each model's temperature is compared with the ${st} sensor in 3-hour blocks of the day. The miss swings with the season and with snow on the ground, so ${alta
+      ? 'the correction averages two measures: a table by calendar month from every month since March 2024, and a rolling bias from the last 14 days, re-measured each morning for each lead day'
+      : 'the correction uses a table by calendar month from every month since March 2024 (the nightly job that adds a rolling 14-day bias runs for Alta only)'}. For this month, 1 day out:
+      <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>12–3a</th><th>3–6a</th><th>6–9a</th><th>9a–12p</th><th>12–3p</th><th>3–6p</th><th>6–9p</th><th>9p–12a</th></tr></thead><tbody id="method-temp"></tbody></table></div>
+      <span id="method-temp-note"></span> In hours when a model has precipitation its correction also gets a storm-hour adjustment (<span id="method-wet">–</span>): the sensor reads closer to the models while it snows than on clear nights, and those are the hours that decide rain or snow. The corrected temperature feeds the rain/snow split and the snow ratio. The sensor sits at ${ft(R.snotel.ft)} ft, so this assumes each model's miss is the same at ${pf}.${alta ? ' The <a href="scorecard.html">scorecard</a> tracks whether it helps.' : ''}</li>
+    <li><b>Wind.</b> <span id="method-wind">${alta ? "No SNOTEL near Alta measures wind, so the nightly scorecard worker saves Hidden Peak's readings and learns the correction from them."
+      : "Not corrected: SNOTELs don't measure wind, and the Hidden Peak correction is learned against Alta's forecast only. Wind here is the plain model blend, which reads light for ridgetops."}</span></li>
+    <li><b>Rain or snow.</b> From the temperature at ${pf}: all snow at 32°F or colder, all rain at 37.4°F or warmer, a straight line between (Jennings et al. 2018). The bars and blocks are blue when at least 85% of the water falls as snow, green when at most 15% does, purple in between, and orange for any 6"+ day.</li>
+    <li><b>Snow ratio.</b> Kuchera method: 12:1 at about 29°F, heavier above, lighter below, from the warmer of the ${pf} and 700 mb temperatures.</li>
+    <li><b>Days 8–15.</b> The corrections are only measured out to 7 days, and a single model run that far out is mostly noise, so from day 8 the snow and water are the average of all 82 ensemble runs rather than the four-model blend. The model table still shows each model's own run.</li>
+    <li><b>Odds and ranges.</b> The same steps run on all 82 runs of the ECMWF (51) and GFS (31) ensembles, each corrected with its parent model's factor (the GFS ensemble keeps one grid throughout, so its factor is held at the day-4 value). "Likely range" takes how spread out the middle half of those runs is and centres it on the blend; chance figures are the share of runs that hit the mark.</li>
+    <li><b>Everything else</b> (temperature, feels like, humidity, wind, cloud, freezing level) is the weighted blend of the four models. Snow level comes from the NWS forecast grid (${esc(R.nws)}) and runs out after about 7 days.</li>
+  </ol>
+  <p class="hint">Sources: Open-Meteo forecast, ensemble and previous-runs APIs (NOAA, ECMWF, Environment Canada models) · NWS api.weather.gov (snow level, forecast snow, alerts, forecast discussion) · NRCS SNOTEL ${esc(R.snotel.triplet.split(':')[0])} ${esc(R.snotel.name)} · base and peak heights and opening day: Ski Utah. The forecast numbers never come from OpenSnow or the resort; the cams are the resort's own.</p>`;
+}
+
 function renderMethod(b, data) {
+  $('method').innerHTML = methodHtml();
   const c = data.calib;
-  if (!c) return;
+  if (!c) { $('method').insertAdjacentHTML('afterbegin', `<p class="warn">This resort's calibration file is missing, so its water isn't corrected.</p>`); return; }
   const leads = Object.keys(c.factors[MODELS[0].id]);
   $('method-factors').innerHTML = MODELS.map(m => `<tr><th><i class="key" style="background:${m.color}"></i>${m.name}</th>
     ${leads.map(n => `<td title="${c.totals[m.id][n].forecast}&quot; forecast vs ${c.totals[m.id][n].observed}&quot; measured over ${c.totals[m.id][n].days} days · blend weight ${Math.round(100 * c.blend_weights[m.id][n])}%">×${c.factors[m.id][n].toFixed(2)}</td>`).join('')}</tr>`).join('');
@@ -271,15 +277,62 @@ function renderMethod(b, data) {
         const a = c.temperature_bias_month_3h[m.id][month][k], r = roll?.[m.id]?.[1]?.[k];
         return `<td title="month table ${sg(a)} · last 14 days ${sg(r)}">${sg(r == null ? a : (a + r) / 2)}</td>`;
       }).join('')}</tr>`).join('');
+    const wa = c.temperature_wet_adjust;
+    if (wa) $('method-wet').textContent = MODELS.map(m => `${m.name} ${sg(wa[m.id]?.adjust ?? 0)}`).join(', ') + ', from November–April storm hours';
     $('method-temp-note').textContent = roll
       ? `Hover a cell for its two parts. Blocks are Mountain Standard Time; add an hour while daylight saving is on.`
-      : `Only the month table is in use here (the rolling part comes from the deployed site's nightly job). Blocks are Mountain Standard Time.`;
+      : R.id === 'alta' ? `Only the month table is in use here (the rolling part comes from the deployed site's nightly job). Blocks are Mountain Standard Time.`
+      : `Blocks are Mountain Standard Time; add an hour while daylight saving is on.`;
   }
   const w = b.windFactor || data.corrections?.wind;
   if (w) $('method-wind').textContent = w.active
     ? `Forecast wind is scaled ×${w.speed.toFixed(2)} and gusts ×${w.gust.toFixed(2)}, learned from ${w.days} days of Hidden Peak (11,000 ft) readings vs what was forecast 1–7 days earlier, so it reads as upper-mountain wind.`
     : `Learning: ${w.days} of ${w.needDays} days of Hidden Peak (11,000 ft) readings matched so far; the correction switches on by itself after that. Until then wind is the uncorrected model blend.`;
 }
+
+// ---------- resort header, opening day, cams ----------
+const monogram = r => ({ alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO' })[r.id] || r.name.slice(0, 2).toUpperCase();
+const LCC = r => r.canyon === 'Little Cottonwood';
+function renderHeader() {
+  document.title = `${R.name} Snow Forecast`;
+  $('rname').textContent = R.name;
+  $('rpoint').textContent = `· forecast point ${ft(R.point.ft)} ft`;
+  const alta = R.id === 'alta';
+  $('badge').innerHTML = alta ? '<img src="badge.svg" alt="">' : `<span class="mono ${LCC(R) ? 'lcc' : 'bcc'}">${monogram(R)}</span>`;
+  $('alta-logo').hidden = !alta;
+  $('score-link').hidden = !alta;
+  $('obs-where').textContent = `· ${R.snotel.name} SNOTEL${R.snotel.km < 1 ? `, ${R.name}` : `, ${R.snotel.km} km away`}`;
+  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. The likely range for each 12 hours is in Day &amp; night below; hover or tap a bar for the day's range and odds.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
+  $('models-hint').textContent = `Running total of snow at ${R.name} by model, after each model's ${R.name} correction. The grey band covers the middle 80% of the 82 ensemble runs' running totals.`;
+  const today = localKey(new Date()).slice(0, 10);
+  $('opening').textContent = R.opening && R.opening > today
+    ? `Opens ${new Date(R.opening + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} (Ski Utah)`
+    : R.opening ? '' : 'Opening day not announced yet (Ski Utah)';
+  renderCams();
+}
+
+// YouTube cams load as a still frame and only start the player when tapped, so the page stays light
+function renderCams() {
+  const c = R.cams;
+  const yt = c.youtube.map(v => `<button class="cam" data-yt="${esc(v.id)}" title="Play ${esc(v.name)} live">
+      <img src="https://i.ytimg.com/vi/${esc(v.id)}/hqdefault_live.jpg" alt="" loading="lazy">
+      <span class="cam-play" aria-hidden="true">▶</span><span class="cam-name">${esc(v.name)}</span></button>`).join('');
+  $('cams').innerHTML = `${yt ? `<div class="cam-grid">${yt}</div>` : ''}
+    <a class="cam-link" href="${esc(c.page)}" target="_blank" rel="noopener"><b>${yt ? `More on ${esc(R.name)}'s site ↗` : `Open ${esc(R.name)}'s live cams ↗`}</b><small>${esc(c.label)}</small></a>
+    <p class="hint">${yt ? `${esc(R.name)} streams these on YouTube; they play here in YouTube's own player.`
+      : `${esc(R.name)} publishes its cams as pictures on its own site rather than as a stream other apps can show, so this opens their page.`}</p>`;
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('.cam[data-yt]');
+  if (!b) return;
+  const f = document.createElement('iframe');
+  f.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(b.dataset.yt)}?autoplay=1&mute=1&playsinline=1`;
+  f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  f.allowFullscreen = true;
+  f.title = b.title;
+  f.className = 'cam-frame';
+  b.replaceWith(f);
+});
 
 // ---------- tooltip ----------
 const tip = document.createElement('div');
@@ -303,14 +356,15 @@ document.addEventListener('focusout', hideTip);
 async function load(force) {
   $('status').textContent = 'Loading forecast…';
   try {
-    const res = await fetchAll(force);
+    if (!R) { R = await resortById(RESORT_ID); renderHeader(); }
+    const res = await fetchAll(force, R.id);
     const b = build(res);
     renderSummary(b); renderPeriods(b); renderHourly(b); renderModels(b);
     renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
     const errs = Object.entries(res.errors);
     const when = new Date(res.at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
     $('status').innerHTML = `Updated ${when}` + (errs.length ? ` · <span class="warn">couldn't reach: ${errs.map(([k]) => k).join(', ')}</span>` : '');
-    window.altaForecast = b; // handy for poking at numbers in the console
+    window.resortForecast = b; // handy for poking at numbers in the console
   } catch (e) {
     $('status').innerHTML = `<span class="warn">Forecast failed to load: ${esc(e.message)}</span>`;
     console.error(e);

@@ -27,7 +27,8 @@
     <h2 id="snow-h" class="sr-only">Snow forecast, next 15 days</h2>
     <div class="totals" id="totals"></div>
     <div class="chart" id="chart" role="img" aria-label="Daily snow forecast for Alta, next 15 days"></div>
-    <p class="note">Each day is 6 pm the night before to 6 pm. Thin line = likely range. Orange = 6"+.</p>
+    <div class="note" id="legend"></div>
+    <p class="note">Each day is 6 pm the night before to 6 pm. Tap <a href="forecast.html">Alta</a> for the likely range and hour by hour.</p>
   </section>
 
   <section class="cards">
@@ -40,9 +41,9 @@
       <span class="door-icon" aria-hidden="true">⛰️</span>
       <span><b>Backcountry</b><small>3D map · tours · avalanche risk</small></span>
     </a>
-    <a href="forecast.html" class="door resort">
+    <a href="resorts.html" class="door resort">
       <span class="door-icon" aria-hidden="true">🚡</span>
-      <span><b>Resort</b><small>Alta snow totals · hourly · models</small></span>
+      <span><b>Resorts</b><small>Alta · Snowbird · Brighton · Solitude</small></span>
     </a>
   </nav>
 
@@ -53,6 +54,7 @@
 
   <script src="snow.js"></script>
   <script src="forecast-data.js"></script>
+  <script src="snowbars.js"></script>
   <script src="avalanche.js"></script>
   <script src="home.js"></script>
 </body>
