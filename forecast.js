@@ -29,7 +29,7 @@ function renderSummary(b) {
     }).join('');
     return `<section class="sgroup">
       <header><span>${label}</span><b class="${tot >= 12 ? 'pow' : ''}">${Math.round(tot)}"${anyMissing ? '<sup title="Some models end before these days">*</sup>' : ''}</b></header>
-      ${snowBars(ds, { max, marks: [], todayFirst: a === 0, tipAttr: 'data-tip' })}
+      ${snowBars(ds, { max, marks: [], todayFirst: a === 0, tipAttr: 'data-tip', tight: true })}
       <div class="odds-row"><span class="odds-cap">% chance of ${POWDER_IN}"+</span>${odds}</div>
     </section>`;
   }).join('');
@@ -95,7 +95,10 @@ function renderHourly(b) {
       </div>`;
     }).join('') || '<p class="muted">No hourly data for this day.</p>'}</div>`;
   $('hourly-day').textContent = hourlyDay === b.today ? 'Today' : `${dow(hourlyDay)} ${dom(hourlyDay)}`;
-  $('jump').querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  // Centre the chosen day in the picker by scrolling the picker sideways only; scrollIntoView
+  // also scrolled the page, so every forecast opened at Hourly instead of the top
+  const jump = $('jump'), sel = jump.querySelector('[aria-selected="true"]');
+  if (sel) { const r = sel.getBoundingClientRect(), jr = jump.getBoundingClientRect(); jump.scrollLeft += r.left - jr.left - (jr.width - r.width) / 2; }
 }
 
 function renderModels(b) {

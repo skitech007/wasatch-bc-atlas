@@ -39,7 +39,7 @@
 .odds-cap { grid-column: 1 / -1; font-size: 10px; color: var(--faint); font-weight: 600; letter-spacing: 0.02em; margin-bottom: 1px; }
 .odd { text-align: center; font-size: var(--fs-xs); font-weight: 700; padding: 5px 0; border-radius: 6px; background: var(--surface-3); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 0; }
 .odd.hot { color: #fff; }
-:root[data-theme="glare"] .odd.hot { color: #fff; }
+:root[data-theme="glare"] .odd.hot { color: var(--text); }  /* white on the pale glare tint was hard to read in sun */
 .legend-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-3); }
 
 /* ---------- day & night: a list that reads on a phone without sideways scrolling ---------- */

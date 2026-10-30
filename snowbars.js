@@ -31,8 +31,10 @@ function rangeText(ens, blend) {
 
 // days: build().days (or a slice). max: inches at full height, so separate groups share a scale.
 // marks: indexes that start a new 5-day block (dashed line before them). tipAttr: 'data-tip' on
-// pages with their own tooltip (forecast.js), else the browser's title.
-function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = false, tipAttr = 'title' } = {}) {
+// pages with their own tooltip (forecast.js), else the browser's title. tight: drop the inch mark
+// from the labels (on by default past 10 columns; the forecast summary's three side-by-side
+// groups of 5 are just as narrow on a phone).
+function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = false, tipAttr = 'title', tight = days.length > 10 } = {}) {
   const top = max ?? Math.max(4, ...days.map(d => d.snow || 0));
   return `<div class="sb${compact ? ' compact' : ''}" style="--n:${days.length}">${days.map((d, i) => {
     const v = d.snow || 0, cls = snowClass(d), type = precipType(d);
@@ -42,9 +44,8 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = fal
       + (d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
     // Compact rows (the resorts list) only label the 6"+ days, without the inch mark so neighbours
     // don't touch; the group totals carry the rest
-    // Past 10 columns the inch mark is dropped too (the legend says inches), so two-digit neighbours
-    // like 14 and 18 never run together on a 390 pt phone
-    const tight = days.length > 10;
+    // Tight rows drop the inch mark too (the legend says inches), so two-digit neighbours like
+    // 14 and 18 never run together on a 390 pt phone
     const lab = tight ? snowLabel(v).replace('"', '') : snowLabel(v);
     const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : lab;
     const isToday = todayFirst && i === 0;
