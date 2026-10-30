@@ -55,7 +55,7 @@ function renderPeriods(b) {
     return `<tr class="${p.isDay ? 'day' : 'night'}">
       ${p.isDay || p === b.periods[0] ? `<th rowspan="${p.isDay && b.periods[b.periods.indexOf(p) + 1] ? 2 : 1}" class="pday">${dow(p.date)}<small>${dom(p.date)}</small></th>` : ''}
       <td class="pn">${p.isDay ? 'Day' : 'Night'}</td>
-      <td class="snowcell"><span class="chip t-${cls}" title="${PTYPE_NAME[precipType(p)]}">${rangeTxt}</span><small>${blended}</small></td>
+      <td class="snowcell"><span class="snow-chip t-${cls}" title="${PTYPE_NAME[precipType(p)]}">${rangeTxt}</span><small>${blended}</small></td>
       <td class="num">${r0(p.tempF)}°</td>
       <td class="ic" title="${icTitle}">${ic}</td>
       <td class="num">${p.slr ? Math.round(p.slr) + ':1' : '--'}</td>

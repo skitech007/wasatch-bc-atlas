@@ -174,9 +174,9 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .sb-legend i.t-rain { background: var(--c-rain); }
 .sb-legend i.t-pow { background: var(--c-pow); }
 /* a snow amount as a solid block, coloured like the bars */
-.chip { display: inline-block; min-width: 44px; padding: 3px 8px; border-radius: 6px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
-.chip.t-snow { background: var(--c-snow); color: #fff; }
-.chip.t-mix { background: var(--c-mix); color: #120f2a; }
-.chip.t-rain { background: var(--c-rain); color: #06170f; }
-.chip.t-pow { background: var(--c-pow); color: #1d0e00; }
-.chip.t-none { color: var(--muted); font-weight: 600; }
+.snow-chip { display: inline-block; min-width: 44px; padding: 3px 8px; border-radius: 6px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.snow-chip.t-snow { background: var(--c-snow); color: #fff; }
+.snow-chip.t-mix { background: var(--c-mix); color: #120f2a; }
+.snow-chip.t-rain { background: var(--c-rain); color: #06170f; }
+.snow-chip.t-pow { background: var(--c-pow); color: #1d0e00; }
+.snow-chip.t-none { color: var(--muted); font-weight: 600; }
