@@ -40,8 +40,9 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = fal
     const tip = `${dow(d.date)} ${dom(d.date)}: ${v.toFixed(1)}" ${type === 'none' ? '' : PTYPE_NAME[type].toLowerCase()}`
       + (lr && lr[1] >= 0.5 ? ` · likely ${rangeText(d.ens, d.snow)}` : '')
       + (d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
-    // Compact rows (the resorts list) only label the 6"+ days; the group totals carry the rest
-    const label = compact ? (cls === 'pow' ? snowLabel(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v);
+    // Compact rows (the resorts list) only label the 6"+ days, without the inch mark so neighbours
+    // don't touch; the group totals carry the rest
+    const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v);
     const isToday = todayFirst && i === 0;
     return `<div class="sb-col${isToday ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
       <span class="sb-v">${label}</span>

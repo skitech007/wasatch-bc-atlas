@@ -151,7 +151,8 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 :root { --c-snow: #3987e5; --c-mix: #9085e9; --c-rain: #3fae7a; --c-pow: #f08a24; --c-none: #3a4552; }
 .sb { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; height: var(--sb-h, 170px); }
 .sb-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.sb-v { font-size: 11px; font-weight: 700; height: 15px; line-height: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* the gap below the numbers keeps the tallest bar from touching its label */
+.sb-v { font-size: 11px; font-weight: 700; height: 15px; line-height: 15px; margin-bottom: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sb-v small { font-size: 9px; font-weight: 600; color: var(--c-rain); }
 .sb-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 .sb-area i { display: block; width: 80%; max-width: 36px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--c-none); }
