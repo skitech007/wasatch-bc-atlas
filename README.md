@@ -79,3 +79,25 @@ No invented data. Every number comes from one of these sources:
 ## Checked and not used
 
 - **PEAKS 2.0-style inversion correction** (2026-10-26). OpenSnow says models run too warm in valleys on calm, clear nights. At Atwater, after the month and hour temperature table, calm (≤5 mph), clear (≤25% cloud) nights show no consistent leftover bias: NBM was 5.5°F too warm in 2024–25 but 2°F too cold in 2025–26, GFS flips sign too, and ECMWF runs about 1–2°F too cold rather than warm. Alta's basin drains cold air rather than pooling it, so the correction isn't applied.
+
+## Run your own copy
+
+The live site deploys only from the maintainer's machine; no Cloudflare credentials live in this repo or on GitHub. To run the Worker yourself, on your own Cloudflare account:
+
+```bash
+npx wrangler@4 kv namespace create SCORE      # put the id it prints into wrangler.jsonc
+npx wrangler@4 secret put RUN_KEY             # any long random string; guards POST /api/run
+npx wrangler@4 deploy
+```
+
+The pages work without the Worker too (see Run locally); the scorecard and saved wind just stay empty.
+
+## Contributing
+
+Fork the repo and open a pull request against `main`. Keep to the data rule above: any new number needs a source in the table. Never commit keys, tokens or `.dev.vars`.
+
+## License
+
+The code is MIT licensed (`LICENSE`). MapLibre GL JS in `lib/` keeps its own BSD-3 licence. The files in `data/` and `tiles/` are derived from the sources in the table above and stay under those sources' terms, including OpenStreetMap data (© OpenStreetMap contributors, ODbL). Tour notes paraphrase and link the pages they came from.
+
+This is a planning aid, not an avalanche forecast. Check the Utah Avalanche Center and make your own decisions in the field.
