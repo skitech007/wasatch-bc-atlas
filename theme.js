@@ -60,6 +60,10 @@
     });
     // static icons written as <i data-icon="name"></i> in the HTML
     document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = ICON[el.dataset.icon] || ''; });
+    // Bars stuck under the top bar (the forecast's jump nav) follow its real height, which grows
+    // when a long subtitle wraps to two lines on a narrow phone
+    const tb = document.querySelector('.topbar');
+    if (tb && 'ResizeObserver' in window) new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px')).observe(tb);
     // No-signal bar
     const bar = document.createElement('div');
     bar.className = 'offline-bar'; bar.setAttribute('role', 'status');

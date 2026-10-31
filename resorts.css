@@ -1,5 +1,5 @@
 /* Resorts list: one card per resort, the whole card opens the forecast. Builds on app.css. */
-.rlist { display: grid; gap: var(--sp-3); }
+.rlist { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
 .rcard { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4); transition: border-color .15s; }
 .rcard:hover { border-color: var(--line-strong); }
 .rc-link { position: absolute; inset: 0; border-radius: var(--r-lg); z-index: 1; }
@@ -7,7 +7,7 @@
 .rcard header { display: flex; align-items: center; gap: var(--sp-3); }
 .rc-name { flex: 1; min-width: 0; }
 .rc-name h2 { margin: 0; font-size: var(--fs-lg); font-weight: 750; display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; letter-spacing: -0.01em; }
-.rc-name p { margin: 1px 0 0; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-name p { margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.35; color: var(--muted); }
 .star { position: relative; z-index: 2; color: var(--faint); }
 .star svg { fill: none; }
 .star.on { color: #f2c94c; }

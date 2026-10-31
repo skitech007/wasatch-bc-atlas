@@ -47,15 +47,19 @@ function renderPeriods(b) {
     const type = precipType(p);
     const likelyHi = likelyRange(p.ens, p.snow)?.[1] ?? p.snow;
     // A rain period shows its rain, not a snow range
-    const chip = type === 'rain' && (p.water || 0) >= 0.01
-      ? `<span class="snow-chip t-rain">Rain</span><small>${in2(p.water)}" water</small>`
-      : `<span class="snow-chip t-${likelyHi >= 0.5 ? snowClass(p) : 'none'}" title="${PTYPE_NAME[type]}">${rangeText(p.ens, p.snow)}</span>${p.snow >= 0.05 ? `<small>${p.snow.toFixed(1)}" likely</small>` : ''}`;
+    const rain = type === 'rain' && (p.water || 0) >= 0.01;
+    const chip = rain ? '<span class="snow-chip t-rain">Rain</span>'
+      : `<span class="snow-chip t-${likelyHi >= 0.5 ? snowClass(p) : 'none'}" title="${PTYPE_NAME[type]}">${rangeText(p.ens, p.snow)}</span>`;
+    // The single most likely amount: beside the block on a wide screen, first in the detail line on
+    // a phone (beside the block it ran into the temperature on a 320 pt screen)
+    const note = rain ? [`${in2(p.water)}"`, 'water', 'Water'] : p.snow >= 0.05 ? [`${p.snow.toFixed(1)}"`, 'likely', 'Likely'] : null;
     return `<div class="prow ${p.isDay ? 'day' : 'night'}">
       <span class="pn">${p.isDay ? 'Day' : 'Night'}</span>
-      <span class="pchip">${chip}</span>
+      <span class="pchip">${chip}${note ? `<small>${note[0]} ${note[1]}</small>` : ''}</span>
       <span class="ptemp">${r0(p.tempF)}°</span>
       ${wxIcon(p) || '<span class="wx"></span>'}
       <span class="pmeta">
+        ${note ? `<span class="mlk"><span class="lbl">${note[2]} </span><b>${note[0]}</b></span>` : ''}
         <span><span class="lbl">Ratio </span><b>${p.slr ? Math.round(p.slr) + ':1' : '–'}</b></span>
         <span><span class="lbl">Snow lvl </span><b>${lvl(p)}</b></span>
         <span><span class="lbl">Precip </span><b>${p.chance == null ? '–' : Math.round(p.chance) + '%'}</b></span>

@@ -50,8 +50,7 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = fal
     const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : lab;
     const isToday = todayFirst && i === 0;
     return `<div class="sb-col${isToday ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
-      <span class="sb-v">${label}</span>
-      <div class="sb-area"><i class="t-${cls}" style="height:${type === 'none' ? 0 : Math.max(4, Math.min(100, 100 * v / top))}%"></i></div>
+      <div class="sb-area"><i class="t-${cls}" style="height:${type === 'none' ? 0 : Math.max(4, Math.min(100, 100 * v / top))}%">${label === '' ? '' : `<span class="sb-v">${label}</span>`}</i></div>
       <span class="sb-d">${isToday ? 'Tdy' : dow(d.date).slice(0, compact ? 1 : 2)}<br><b>${dom(d.date)}</b></span>
     </div>`;
   }).join('')}</div>`;

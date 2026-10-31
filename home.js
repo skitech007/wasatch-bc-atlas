@@ -13,7 +13,7 @@ function renderTotals(b, data) {
   const cell = (v, label, cls = '') => `<div class="stat-cell ${cls}"><b>${v}</b><span>${label}</span></div>`;
   const n5 = tot(0, 5);
   $('totals').innerHTML = cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')
-    + cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '') + cell(tot(5, 10) + '"', 'Days 6–10') + cell(tot(10, 15) + '"', 'Days 11–15');
+    + cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '') + cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010') + cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015');
 }
 
 function renderStorm(b) {

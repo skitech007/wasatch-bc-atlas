@@ -3,7 +3,7 @@
 // Map tiles and map fonts go in a second cache, cache-first, so a tour viewed (or
 // saved with "Save for offline") at home still draws with no signal on the skin track. The app's own
 // terrain-class tiles (/tiles/) stay in the shell cache, so a rebuild replaces them.
-const CACHE = 'atlas-shell-v7';
+const CACHE = 'atlas-shell-v8';
 const TILES = 'atlas-tiles-v1';
 const TILE_MAX = 12000;          // entries kept; the oldest go first past this
 const SHELL = [

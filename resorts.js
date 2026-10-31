@@ -30,7 +30,7 @@ function cardBody(r) {
   const st = biggestStorm(b.days);
   const n5 = tot(0, 5);
   const cell = (v, l, c = '') => `<div class="stat-cell ${c}"><b>${v}</b><span>${l}</span></div>`;
-  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6–10')}${cell(tot(10, 15) + '"', 'Days 11–15')}</div>
+  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010')}${cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015')}</div>
     ${snowBars(b.days, { compact: true })}
     <p class="rc-line">${st ? `<span class="${st.total >= 6 ? 'pow' : ''}">${st.first ? 'Next storm' : 'Biggest storm'} <b>${Math.round(st.total)}"</b> ${st.when}</span>` : '<span>No storm in 15 days</span>'}<span>${label} <b>${deg(day?.tempF)}</b> / ${deg(night?.tempF)}${day?.ws != null ? ` · ${SNOW.compass(day.wd)} ${Math.round(day.ws)} mph` : ''}</span></p>`;
 }

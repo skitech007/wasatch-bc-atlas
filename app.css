@@ -200,11 +200,11 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 :root { --c-snow: #3987e5; --c-mix: #9085e9; --c-rain: #3fae7a; --c-pow: #f08a24; --c-none: #3a4552; }
 .sb { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; height: var(--sb-h, 170px); }
 .sb-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-/* the gap below the numbers keeps the tallest bar from touching its label */
-.sb-v { font-size: 12px; font-weight: 750; height: 15px; line-height: 15px; margin-bottom: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* each number sits 3 px above its own bar; the area keeps 18 px of headroom so the tallest bar's number fits */
+.sb-v { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 12px; font-style: normal; font-weight: 750; line-height: 15px; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sb-v small { font-size: 9px; font-weight: 600; color: var(--c-rain); }
-.sb-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
-.sb-area i { display: block; width: 80%; max-width: 36px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--c-none); }
+.sb-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; padding-top: 18px; }
+.sb-area i { position: relative; display: block; width: 80%; max-width: 36px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--c-none); }
 .sb-area i.t-snow { background: var(--c-snow); }
 .sb-area i.t-mix { background: var(--c-mix); }
 .sb-area i.t-rain { background: var(--c-rain); }
@@ -228,7 +228,7 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .sb-legend i.t-rain { background: var(--c-rain); }
 .sb-legend i.t-pow { background: var(--c-pow); }
 /* a snow amount as a solid block, coloured like the bars */
-.snow-chip { display: inline-block; min-width: 44px; padding: 3px 8px; border-radius: 6px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.snow-chip { display: inline-block; min-width: 44px; padding: 3px 8px; white-space: nowrap; border-radius: 6px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .snow-chip.t-snow { background: var(--c-snow); color: #fff; }
 .snow-chip.t-mix { background: var(--c-mix); color: #120f2a; }
 .snow-chip.t-rain { background: var(--c-rain); color: #06170f; }
@@ -244,7 +244,7 @@ a { text-underline-offset: 2px; }
 
 /* page shell for the content pages (home, resorts, forecast, scorecard) */
 .page { min-height: 100%; height: auto; background: var(--bg); }
-.page-main { max-width: 760px; margin: 0 auto; padding: var(--sp-3) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom)); display: grid; gap: var(--sp-3); }
+.page-main { max-width: 760px; margin: 0 auto; padding: var(--sp-3) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom)); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
 
 /* top bar: back, title, actions. Sticky, blurred, the same on every page */
 .topbar {
@@ -258,7 +258,7 @@ a { text-underline-offset: 2px; }
 .topbar-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); }
 .topbar-title > div { min-width: 0; }
 .topbar h1 { margin: 0; font-size: var(--fs-lg); font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topbar .sub { margin: 1px 0 0; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar .sub { margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.3; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .topbar-actions { display: flex; align-items: center; gap: var(--sp-1); flex: 0 0 auto; }
 
 /* icon button: 44 x 44, the glove-sized target */
@@ -294,7 +294,7 @@ svg.ic { width: 1em; height: 1em; vertical-align: -0.15em; fill: none; stroke: c
 .stats-row { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: var(--sp-2); }
 .stat-cell { min-width: 0; }
 .stat-cell b { display: block; font-size: var(--fs-xl); font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.stat-cell span { display: block; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.stat-cell span { display: block; font-size: var(--fs-xs); color: var(--muted); line-height: 1.25; }  /* wraps on a 320 pt screen rather than pushing the card wider */
 .stat-cell.dim b { color: var(--muted); }
 .stat-cell.pow b { color: var(--c-pow); }
 

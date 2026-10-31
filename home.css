@@ -45,7 +45,7 @@
 .door.score .door-icon { background: #5b4bb0; }
 .door-text { flex: 1; min-width: 0; }
 .door-text b { display: block; font-size: var(--fs-lg); }
-.door-text small { display: block; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.door-text small { display: block; color: var(--muted); font-size: var(--fs-xs); line-height: 1.35; }
 
 @media (min-width: 640px) {
   .doors { grid-template-columns: repeat(3, 1fr); }
