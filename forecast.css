@@ -211,3 +211,6 @@ code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; font-
   #alerts .alert { --gut: var(--sp-3); }
   .card { padding: var(--sp-3); }
 }
+@media (max-width: 360px) {   /* the resort's name is right beside it; the room goes to "updated 10:04 PM" */
+  .fc .topbar .badge { display: none; }
+}
