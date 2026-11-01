@@ -1,24 +1,23 @@
 /* Resorts list: one card per resort, the whole card opens the forecast. Builds on app.css. */
 .rlist { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
-.rcard { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4); transition: border-color .15s; }
+.rcard { position: relative; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3); transition: border-color .15s; }
 .rcard:hover { border-color: var(--line-strong); }
 .rc-link { position: absolute; inset: 0; border-radius: var(--r-lg); z-index: 1; }
 .rc-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rcard header { display: flex; align-items: center; gap: var(--sp-3); }
-.rc-name { flex: 1; min-width: 0; }
-.rc-name h2 { margin: 0; font-size: var(--fs-lg); font-weight: 750; display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; letter-spacing: -0.01em; }
-.rc-name p { margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.35; color: var(--muted); }
-.rc-name .pill { margin: 3px 0 2px; }   /* opening day: its own line on every card, so the cards line up */
+.rcard header { display: grid; grid-template-columns: 44px minmax(0, 1fr) var(--tap); grid-template-areas: "logo title star" "logo sub sub"; column-gap: var(--sp-3); align-items: center; }
+.rcard header .rbadge { grid-area: logo; }
+.rcard header .star { grid-area: star; }
+.rc-name { display: contents; }   /* name row beside the star, the subtitle runs under the star so it fits on one line */
+.rc-title { grid-area: title; display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--sp-2); }   /* the opening pill drops under the name when they don't fit */
+.rc-name h2 { margin: 0; font-size: var(--fs-xl); font-weight: 750; letter-spacing: -0.01em; line-height: 1.2; }
+.rc-name p { grid-area: sub; align-self: start; margin: 0; font-size: var(--fs-sm); line-height: 1.3; color: var(--muted); }
 .star { position: relative; z-index: 2; color: var(--faint); }
 .star svg { fill: none; }
 .star.on { color: #f2c94c; }
 .star.on svg { fill: currentColor; }
 
-.rcard .stats-row { margin: var(--sp-3) 0 var(--sp-2); }
-.rcard .stat-cell b { font-size: var(--fs-lg); }
-.rcard .sb { --sb-h: 92px; }
-.rc-line { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.35; }
-.rc-line b { color: var(--text); font-weight: 650; }
-.rc-line .pow, .rc-line .pow b { color: var(--c-pow); }
+/* the strip sits above the card's link so it can be swiped sideways (resorts.js opens the forecast on a tap) */
+.rcard .strip { position: relative; z-index: 2; margin-top: var(--sp-3); cursor: pointer; }
+.rcard .sb { --sb-h: 128px; }
 .rc-wait { margin: var(--sp-3) 0 0; }
 .rc-wait .skeleton { margin-top: var(--sp-2); }

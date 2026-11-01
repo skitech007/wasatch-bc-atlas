@@ -98,6 +98,6 @@ Fork the repo and open a pull request against `main`. Keep to the data rule abov
 
 ## License
 
-The code is MIT licensed (`LICENSE`). MapLibre GL JS in `lib/` keeps its own BSD-3 licence. The files in `data/` and `tiles/` are derived from the sources in the table above and stay under those sources' terms, including OpenStreetMap data (© OpenStreetMap contributors, ODbL). Tour notes paraphrase and link the pages they came from.
+The code is MIT licensed (`LICENSE`). MapLibre GL JS in `lib/` keeps its own BSD-3 licence. The files in `data/` and `tiles/` are derived from the sources in the table above and stay under those sources' terms, including OpenStreetMap data (© OpenStreetMap contributors, ODbL). Tour notes paraphrase and link the pages they came from. Resort logos are each resort's trademark, so they aren't in the repo: `logos/` is git-ignored, and without it the app shows each resort's initials instead.
 
 This is a planning aid, not an avalanche forecast. Check the Utah Avalanche Center and make your own decisions in the field.

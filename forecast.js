@@ -15,63 +15,61 @@ const wind = (dir, spd) => spd == null ? '–' : `${SNOW.compass(dir)}${Math.rou
 const chanceBg = c => c == null || c < 5 ? '' : `background: color-mix(in oklab, var(--s1) ${Math.round(c * 0.55)}%, transparent)`;
 
 // ---------- renderers ----------
-function renderSummary(b) {
-  const groups = [[0, 5, 'Next 1–5 days'], [5, 10, 'Days 6–10'], [10, 15, 'Days 11–15']];
-  const max = Math.max(4, ...b.days.map(d => d.snow || 0));
-  $('summary').innerHTML = groups.map(([a, z, label]) => {
-    const ds = b.days.slice(a, z);
-    const tot = ds.reduce((s, d) => s + (d.snow || 0), 0);
-    const anyMissing = ds.some(d => d.snow == null);
-    // The 6"+ odds sit under their own five bars, so each number lines up with its day
-    const odds = ds.map(d => {
-      const p = d.ens?.pPowder;
-      return `<span class="odd${p >= 40 ? ' hot' : ''}" style="${chanceBg(p)}" data-tip="${esc(`${dow(d.date)} ${dom(d.date)}: ${p == null ? 'no ensemble' : Math.round(p) + '% of ' + d.ens.n + ' ensemble runs give ' + POWDER_IN + '"+'}`)}">${p == null ? '–' : Math.round(p)}</span>`;
-    }).join('');
-    return `<section class="sgroup">
-      <header><span>${label}</span><b class="${tot >= 12 ? 'pow' : ''}">${Math.round(tot)}"${anyMissing ? '<sup title="Some models end before these days">*</sup>' : ''}</b></header>
-      ${snowBars(ds, { max, marks: [], todayFirst: a === 0, tipAttr: 'data-tip', tight: true })}
-      <div class="odds-row"><span class="odds-cap">% chance of ${POWDER_IN}"+</span>${odds}</div>
-    </section>`;
-  }).join('');
+// Snow summary: the shared strip (last 24 h, then 15 days to swipe through); tapping a day spells out
+// its amount, likely range and odds under the chart
+let pickedDay = 0;
+function renderSummary(b, data) {
+  $('summary').innerHTML = snowStrip(b.days, { last: snotelDaily(data.snotel).at(-1) ?? null, station: R.snotel.name });
   $('legend').innerHTML = snowLegend();
+  fitStrips();
+  renderDayDetail(b);
+}
+function renderDayDetail(b) {
+  const i = Math.min(pickedDay, b.days.length - 1), d = b.days[i];
+  document.querySelectorAll('#summary .sb-col').forEach(c => c.classList.toggle('sel', +c.dataset.i === i));
+  if (!d) { $('day-detail').textContent = ''; return; }
+  const type = precipType(d), v = d.snow ?? 0;
+  const what = type === 'none' ? 'No snow' : type === 'rain' && v < 0.5 ? `Rain, ${in2(d.water)}" water` : `${v < 0.5 ? 'Trace' : Math.round(v) + '"'} ${type === 'snow' ? 'snow' : PTYPE_NAME[type].toLowerCase()}`;
+  const lr = likelyRange(d.ens, d.snow);
+  const parts = [`<b>${i === 0 ? 'Today' : `${dow(d.date)} ${dom(d.date)}`}</b>`, what];
+  if (lr && lr[1] >= 0.5) parts.push(`likely <b>${rangeText(d.ens, d.snow)}</b>`);
+  if (d.ens) parts.push(`<span class="${d.ens.pPowder >= 40 ? 'pow' : ''}">${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+</span>`);
+  $('day-detail').innerHTML = parts.map(t => `<span class="nw">${t}</span>`).join(' · ');
 }
 
-// Day & night as a list: snow block, temperature and weather on the first line, then snow ratio,
-// snow level, precip chance and wind under it. On a wide screen the second line becomes columns.
+// Day & night as a table you swipe sideways, one column per 12 hours under its date, with the row
+// names pinned on the left: the snow as a bar under its likely range, what decides it, then
+// weather, temperature and wind
 function renderPeriods(b) {
-  const byDate = [];
-  b.periods.forEach(p => { const g = byDate.at(-1); if (g && g.date === p.date) g.ps.push(p); else byDate.push({ date: p.date, ps: [p] }); });
-  const lvl = p => p.snowLevel != null ? `${(Math.round(p.snowLevel / 100) * 100).toLocaleString()}′`
-    : p.fz != null ? `<span title="Freezing level (models); NWS snow level runs out after ~7 days">FzL ${(Math.round(p.fz / 100) * 100).toLocaleString()}′</span>` : '–';
-  const row = p => {
-    const type = precipType(p);
-    const likelyHi = likelyRange(p.ens, p.snow)?.[1] ?? p.snow;
-    // A rain period shows its rain, not a snow range
-    const rain = type === 'rain' && (p.water || 0) >= 0.01;
-    const chip = rain ? '<span class="snow-chip t-rain">Rain</span>'
-      : `<span class="snow-chip t-${likelyHi >= 0.5 ? snowClass(p) : 'none'}" title="${PTYPE_NAME[type]}">${rangeText(p.ens, p.snow)}</span>`;
-    // The single most likely amount: beside the block on a wide screen, first in the detail line on
-    // a phone (beside the block it ran into the temperature on a 320 pt screen)
-    const note = rain ? [`${in2(p.water)}"`, 'water', 'Water'] : p.snow >= 0.05 ? [`${p.snow.toFixed(1)}"`, 'likely', 'Likely'] : null;
-    return `<div class="prow ${p.isDay ? 'day' : 'night'}">
-      <span class="pn">${p.isDay ? 'Day' : 'Night'}</span>
-      <span class="pchip">${chip}${note ? `<small>${note[0]} ${note[1]}</small>` : ''}</span>
-      <span class="ptemp">${r0(p.tempF)}°</span>
-      ${wxIcon(p) || '<span class="wx"></span>'}
-      <span class="pmeta">
-        ${note ? `<span class="mlk"><span class="lbl">${note[2]} </span><b>${note[0]}</b></span>` : ''}
-        <span${p.slr ? '' : ' class="nr"'}><span class="lbl">Ratio </span><b>${p.slr ? Math.round(p.slr) + ':1' : '–'}</b></span>
-        <span><span class="lbl">Snow lvl </span><b>${lvl(p)}</b></span>
-        <span><span class="lbl">Precip </span><b>${p.chance == null ? '–' : Math.round(p.chance) + '%'}</b></span>
-        <span><span class="lbl">Wind </span><b>${wind(p.wd, p.ws)}</b>${p.wg ? ` <span class="lbl">g</span><span class="lbl">${r0(p.wg)}</span>` : ''}</span>
-        <span class="x"><b>${r0(p.wg)}</b></span>
-        <span class="x"><b>${r0(p.app)}°</b></span>
-        <span class="x"><b>${in2(p.water)}"</b></span>
-      </span>
-    </div>`;
+  const ps = b.periods;
+  const max = Math.max(2, ...ps.map(p => p.snow || 0));
+  const lvl = p => p.snowLevel != null ? ft(Math.round(p.snowLevel / 100) * 100)
+    : p.fz != null ? `<span title="Freezing level (models); NWS snow level runs out after ~7 days">${ft(Math.round(p.fz / 100) * 100)}<sup>FzL</sup></span>` : '–';
+  const d0 = i => i === 0 || ps[i - 1].date !== ps[i].date ? ' class="d0"' : '';   // first column of a day draws the day's line
+  const row = (label, unit, f, cls = '') => `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${label}${unit ? ` <small>${unit}</small>` : ''}</th>${ps.map((p, i) => `<td${d0(i)}>${f(p)}</td>`).join('')}</tr>`;
+  const snow = p => {
+    const type = precipType(p), rain = type === 'rain' && (p.water || 0) >= 0.01;
+    const hi = likelyRange(p.ens, p.snow)?.[1] ?? p.snow ?? 0, cls = rain ? 'rain' : snowClass(p);
+    const txt = rain ? 'Rain' : hi >= 0.5 ? rangeText(p.ens, p.snow) : (p.snow || 0) > 0.05 ? 'T' : '0';
+    return `<div class="dn-snow"><span class="${hi >= 0.5 || rain ? 'c-' + cls : 'zero'}" title="${PTYPE_NAME[type]}">${txt}</span><i class="t-${cls}" style="height:${rain ? 0 : Math.min(100, 100 * (p.snow || 0) / max)}%"></i></div>`;
   };
-  $('periods').innerHTML = `<div class="phead"><span></span><span>Snow · likely range</span><span>Temp</span><span></span><span>Ratio</span><span>Snow level</span><span>Precip</span><span>Wind mph</span><span>Gust</span><span>Feels</span><span>Water</span></div>
-    <div class="plist">${byDate.map(g => `<div class="pday-group"><div class="pday-label">${g.date === b.today ? 'Today' : dow(g.date)}<small>${new Date(g.date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</small></div><div>${g.ps.map(row).join('')}</div></div>`).join('')}</div>`;
+  const days = [];
+  ps.forEach(p => { const g = days.at(-1); if (g && g.date === p.date) g.n++; else days.push({ date: p.date, n: 1 }); });
+  $('periods').innerHTML = `<div class="dn-wrap"><table class="dn">
+    <thead><tr><th></th>${days.map(g => `<th colspan="${g.n}" class="d0">${g.date === b.today ? 'Today' : `${dow(g.date)} <b>${dom(g.date)}</b>`}</th>`).join('')}</tr>
+      <tr class="pn"><th></th>${ps.map((p, i) => `<th${d0(i)}>${p.isDay ? 'Day' : 'Night'}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${row('Snow', 'in', snow, 'snowrow')}
+      ${row('Ratio', '', p => p.slr ? `${Math.round(p.slr)}:1` : '–')}
+      ${row('Snow level', 'ft', lvl)}
+      ${row('Chance', '%', p => p.chance == null ? '–' : Math.round(p.chance))}
+      ${row('Water', 'in', p => in2(p.water))}
+      ${row('Weather', '', p => wxIcon(p) || '', 'sec')}
+      ${row('Temp', '°F', p => `<b>${r0(p.tempF)}</b>`)}
+      ${row('Feels like', '°F', p => r0(p.app))}
+      ${row('Wind', 'mph', p => wind(p.wd, p.ws), 'sec')}
+      ${row('Gusts', 'mph', p => r0(p.wg))}
+    </tbody></table></div>`;
 }
 
 // Hourly: one day at a time (chips pick the day), hours down the page so nothing scrolls sideways
@@ -99,8 +97,11 @@ function renderHourly(b) {
       </div>`;
     }).join('') || '<p class="muted">No hourly data for this day.</p>'}</div>`;
   $('hourly-day').textContent = hourlyDay === b.today ? 'Today' : `${dow(hourlyDay)} ${dom(hourlyDay)}`;
-  // Centre the chosen day in the picker by scrolling the picker sideways only; scrollIntoView
-  // also scrolled the page, so every forecast opened at Hourly instead of the top
+  centreJump();
+}
+// Centre the chosen day in the picker by scrolling the picker sideways only; scrollIntoView
+// also scrolled the page. Runs again when the Hourly tab opens (a hidden picker has no width)
+function centreJump() {
   const jump = $('jump'), sel = jump.querySelector('[aria-selected="true"]');
   if (sel) { const r = sel.getBoundingClientRect(), jr = jump.getBoundingClientRect(); jump.scrollLeft += r.left - jr.left - (jr.width - r.width) / 2; }
 }
@@ -299,16 +300,13 @@ function renderMethod(b, data) {
 }
 
 // ---------- resort header, opening day, cams ----------
-const monogram = r => ({ alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO' })[r.id] || r.name.slice(0, 2).toUpperCase();
-const LCC = r => r.canyon === 'Little Cottonwood';
 function renderHeader() {
   document.title = `${R.name} Snow Forecast`;
   $('rname').textContent = R.name;
   const alta = R.id === 'alta';
-  // Monograms for every resort: resort logos are trademarks
-  $('badge').innerHTML = `<span class="mono ${LCC(R) ? 'lcc' : 'bcc'}">${monogram(R)}</span>`;
+  $('badge').innerHTML = resortBadge(R);
   $('obs-where').textContent = `· ${R.snotel.name} SNOTEL${R.snotel.km < 1 ? `, ${R.name}` : `, ${R.snotel.km} km away`}`;
-  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. Each day runs 6 pm the night before to 6 pm. The likely range for each 12 hours is in Day &amp; night; tap a bar for the day's range and odds.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
+  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. Each day runs 6 pm the night before to 6 pm. Swipe the chart for days 6–15 and tap a day for its likely range and the chance of ${POWDER_IN}"+; Day &amp; night has the range for each 12 hours. Last 24 h is the rise in snow depth at the ${esc(R.snotel.name)} SNOTEL.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
   $('models-hint').textContent = `Running total of snow at ${R.name} by model, after each model's ${R.name} correction. The grey band covers the middle 80% of the 82 ensemble runs' running totals.`;
   const today = localKey(new Date()).slice(0, 10);
   $('opening').innerHTML = R.opening && R.opening > today
@@ -366,7 +364,7 @@ async function load(force) {
     if (!R) { R = await resortById(RESORT_ID); renderHeader(); }
     const res = await fetchAll(force, R.id);
     const b = build(res);
-    renderSummary(b); renderPeriods(b); renderHourly(b); renderModels(b);
+    renderSummary(b, res.data); renderPeriods(b); renderHourly(b); renderModels(b);
     renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
     const errs = Object.entries(res.errors);
     const when = new Date(res.at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
@@ -386,6 +384,29 @@ async function load(force) {
   }
 }
 
+// ---------- tabs: Snow, Hourly, Cams, Report, Models. The hash keeps the tab on reload; replacing it
+// rather than adding history means Back still goes to the resort list ----------
+const TABS = ['snow', 'hourly', 'cams', 'report', 'models'];
+function showTab(id) {
+  if (!TABS.includes(id)) id = 'snow';
+  document.querySelectorAll('.tabs [data-tab]').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === id));
+  TABS.forEach(t => { $('t-' + t).hidden = t !== id; });
+  if (id === 'snow') fitStrips();
+  if (id === 'hourly') centreJump();
+}
+document.querySelector('.tabs').addEventListener('click', ev => {
+  const t = ev.target.closest('[data-tab]'); if (!t) return;
+  ev.preventDefault();
+  history.replaceState(null, '', '#' + t.dataset.tab);
+  showTab(t.dataset.tab);
+  window.scrollTo(0, 0);
+});
+showTab(location.hash.slice(1));
+
+$('summary').addEventListener('click', ev => {
+  const c = ev.target.closest('.sb-col'); if (!c || !window.resortForecast) return;
+  pickedDay = +c.dataset.i; renderDayDetail(window.resortForecast);
+});
 $('refresh').addEventListener('click', () => load(true));
 $('jump').addEventListener('click', ev => {
   const d = ev.target.closest('[data-day]')?.dataset.day; if (!d || !window.resortForecast) return;

@@ -2,18 +2,10 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-function renderChart(b) {
-  $('chart').innerHTML = snowBars(b.days);
+function renderChart(b, data) {
+  $('chart').innerHTML = snowStrip(b.days, { last: snotelDaily(data.snotel).at(-1) ?? null, station: 'Atwater' });
   $('legend').innerHTML = snowLegend();
-}
-
-function renderTotals(b, data) {
-  const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
-  const last = snotelDaily(data.snotel).at(-1);
-  const cell = (v, label, cls = '') => `<div class="stat-cell ${cls}"><b>${v}</b><span>${label}</span></div>`;
-  const n5 = tot(0, 5);
-  $('totals').innerHTML = cell(last ? last.gain + '"' : '–', 'Last 24\u00a0h', 'dim')
-    + cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '') + cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010') + cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015');
+  fitStrips();
 }
 
 function renderStorm(b) {
@@ -61,8 +53,7 @@ async function load(force) {
   try {
     const raw = await fetchAll(force);
     const b = build(raw);
-    renderChart(b);
-    renderTotals(b, raw.data);
+    renderChart(b, raw.data);
     renderStorm(b);
     renderToday(b);
     const t = new Date(raw.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

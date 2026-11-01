@@ -196,26 +196,47 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .alta-marker img { width: 20px; height: 20px; display: block; }
 .summary-badge { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; }
 
-/* ---------- daily snow bars (snowbars.js), shared by home, resorts and forecast pages ---------- */
+/* ---------- daily snow (snowbars.js), shared by home, resorts and forecast pages ---------- */
 :root { --c-snow: #3987e5; --c-mix: #9085e9; --c-rain: #3fae7a; --c-pow: #f08a24; --c-none: #3a4552; }
-.sb { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; height: var(--sb-h, 170px); }
+/* the strip: last 24 h, then the 15 days, swiped sideways. Columns stay --col wide at least, so a
+   320 pt phone shows about six days with labels you can read; a wide screen fits all 15 */
+.strip { --col: 32px; }
+.st-scroll { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.st-scroll::-webkit-scrollbar { display: none; }
+.st-scroll:not(.at-end) { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+.st-track { display: flex; gap: 10px; width: max-content; min-width: 100%; }
+.st-now { flex: 0 0 72px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: var(--sp-2); border-radius: var(--r-md); background: var(--surface-3); text-align: center; scroll-snap-align: start; }
+.st-now span { font-size: var(--fs-xs); font-weight: 700; color: var(--muted); }
+.st-now b { font-size: 28px; font-weight: 780; line-height: 1.05; letter-spacing: -0.02em; color: var(--c-snow); font-variant-numeric: tabular-nums; }
+.st-now b.dim { color: var(--muted); }
+.st-now small { font-size: 10px; line-height: 1.25; color: var(--faint); }
+.st-days { flex: 1 0 calc(var(--n) * var(--col)); display: flex; flex-direction: column; min-width: 0; }
+.st-heads { display: grid; grid-template-columns: repeat(var(--n), 1fr); margin-bottom: var(--sp-1); }
+.st-g { display: flex; flex-direction: column; padding-left: var(--sp-2); scroll-snap-align: start; scroll-margin-left: var(--sp-1); }
+.st-g:first-child { padding-left: 0; }
+.st-g.wk { border-left: 1px dashed var(--line); }
+.st-g span { font-size: var(--fs-xs); font-weight: 650; color: var(--muted); white-space: nowrap; }
+.st-g b { font-size: var(--fs-xl); font-weight: 780; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.st-g b.pow { color: var(--c-pow); }
+.st-g sup { font-size: 10px; color: var(--muted); }
+/* the bars under the block headers, one column a day */
+.sb { flex: 1; display: grid; grid-template-columns: repeat(var(--n), 1fr); height: var(--sb-h, 170px); }
 .sb-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.sb-col.wk { border-left: 1px dashed var(--line); }
 /* each number sits 3 px above its own bar; the area keeps 18 px of headroom so the tallest bar's number fits */
-.sb-v { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 12px; font-style: normal; font-weight: 750; line-height: 15px; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sb-v { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: var(--fs-sm); font-style: normal; font-weight: 750; line-height: 15px; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sb-v small { font-size: 9px; font-weight: 600; color: var(--c-rain); }
 .sb-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; padding-top: 18px; }
-.sb-area i { position: relative; display: block; width: 80%; max-width: 36px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--c-none); }
+.sb-area i { position: relative; display: block; width: 72%; max-width: 30px; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--c-none); }
 .sb-area i.t-snow { background: var(--c-snow); }
 .sb-area i.t-mix { background: var(--c-mix); }
 .sb-area i.t-rain { background: var(--c-rain); }
 .sb-area i.t-pow { background: var(--c-pow); }
-.sb-d { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.25; margin-top: 3px; }
-.sb-d b { color: var(--text); font-weight: 600; }
-.sb-col.wk { border-left: 1px dashed var(--line); }
+.sb-d { display: flex; flex-direction: column; align-items: center; margin-top: var(--sp-1); font-size: var(--fs-sm); line-height: 1.2; color: var(--muted); }
+.sb-d b { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.sb-d.we, .sb-d.we b { color: var(--text); font-weight: 800; }   /* weekends in bold */
 .sb-col.today .sb-d b { color: var(--accent); }
-.sb.compact { gap: 2px; }
-.sb.compact .sb-v { font-size: 10px; }
-.sb.compact .sb-area i { width: 76%; border-radius: 2px 2px 0 0; }
+
 .sb-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); align-items: center; }
 .sb-legend .sb-unit { color: var(--faint); }
 .wx { display: inline-grid; place-items: center; width: 22px; height: 22px; color: var(--muted); }
@@ -283,10 +304,12 @@ svg.ic { width: 1em; height: 1em; vertical-align: -0.15em; fill: none; stroke: c
 /* brand mark */
 .brand-mark { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 10px; display: block; }
 
-/* monogram (resorts show as monograms, never logos) */
-.mono { flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; font-weight: 800; font-size: 14px; letter-spacing: 0.02em; color: #fff; }
-.mono.lcc { background: #2c5a94; }
-.mono.bcc { background: #2f6b43; }
+/* resort badge (resortBadge): the resort's logo on a white tile, or its initials without one */
+.rbadge { position: relative; flex: 0 0 44px; width: 44px; height: 44px; display: grid; place-items: center; overflow: hidden; border-radius: 12px; font-weight: 800; font-size: 14px; letter-spacing: 0.02em; color: #fff; }
+.rbadge.lcc { background: #2c5a94; }
+.rbadge.bcc { background: #2f6b43; }
+.rbadge img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 4px; background: #fff; }
+:root[data-theme="glare"] .rbadge { box-shadow: 0 0 0 1px var(--line-strong); }   /* a white tile on a white card needs an edge */
 
 /* cards and sections */
 .card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-4); min-width: 0; }
@@ -294,14 +317,6 @@ svg.ic { width: 1em; height: 1em; vertical-align: -0.15em; fill: none; stroke: c
 .card-head h2, .card > h2 { font-size: var(--fs-md); font-weight: 700; margin: 0; letter-spacing: -0.005em; }
 .card-head .muted, .card > h2 .muted { font-size: var(--fs-xs); font-weight: 500; }
 .eyebrow { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 var(--sp-1); }
-
-/* stat row: a label over a big number */
-.stats-row { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: var(--sp-2); }
-.stat-cell { min-width: 0; }
-.stat-cell b { display: block; font-size: var(--fs-xl); font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.stat-cell span { display: block; font-size: var(--fs-xs); color: var(--muted); line-height: 1.25; }  /* wraps on a 320 pt screen rather than pushing the card wider */
-.stat-cell.dim b { color: var(--muted); }
-.stat-cell.pow b { color: var(--c-pow); }
 
 /* pills */
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; background: var(--surface-3); color: var(--text); }

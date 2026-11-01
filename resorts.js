@@ -3,8 +3,6 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ft = v => Math.round(v).toLocaleString('en-US');
-const deg = v => v == null ? '–' : Math.round(v) + '°';
-const MONO = { alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO' };
 
 const FAV_KEY = 'wbca.favResorts';
 const favs = () => { try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch { return []; } };
@@ -24,32 +22,28 @@ function cardBody(r) {
   if (!x) return '<div class="rc-wait" aria-busy="true"><div class="skeleton sk-line" style="width:60%"></div><div class="skeleton" style="height:92px"></div></div>';
   if (x.error) return `<div class="banner warn rc-wait">${ICON.alert}<div><b>Forecast unavailable</b>${esc(x.error)}</div></div>`;
   const { raw, b } = x;
-  const last = snotelDaily(raw.data.snotel).at(-1);
-  const tot = (a, z) => Math.round(b.days.slice(a, z).reduce((s, d) => s + (d.snow || 0), 0));
-  const { label, day, night } = dayAhead(b);
-  const st = biggestStorm(b.days);
-  const n5 = tot(0, 5);
-  const cell = (v, l, c = '') => `<div class="stat-cell ${c}"><b>${v}</b><span>${l}</span></div>`;
-  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24\u00a0h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010')}${cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015')}</div>
-    ${snowBars(b.days, { compact: true })}
-    <p class="rc-line">${st ? `<span class="${st.total >= 6 ? 'pow' : ''}">${st.first ? 'Next storm' : 'Biggest storm'} <b>${Math.round(st.total)}"</b> ${st.when}</span>` : '<span>No storm in 15 days</span>'}<span>${label} <b>${deg(day?.tempF)}</b> / ${deg(night?.tempF)}${day?.ws != null ? ` · ${SNOW.compass(day.wd)} ${Math.round(day.ws)} mph` : ''}</span></p>`;
+  return snowStrip(b.days, { last: snotelDaily(raw.data.snotel).at(-1) ?? null, station: r.snotel.name, numbers: false });
 }
 
 function render() {
   const f = favs(), today = localKey(new Date()).slice(0, 10);
+  // Keep each strip where it was swiped to when the list redraws as forecasts arrive
+  const kept = Object.fromEntries([...document.querySelectorAll('.rcard')].map(c => [c.dataset.id, c.querySelector('.st-scroll')?.scrollLeft || 0]));
   $('list').innerHTML = order().map(r => {
     const star = f.includes(r.id);
     const opening = !r.opening ? 'Opening TBA' : r.opening > today ? `Opens ${shortDate(r.opening)}` : '';
-    return `<article class="rcard">
+    return `<article class="rcard" data-id="${r.id}">
       <a class="rc-link" href="forecast.html?r=${r.id}" aria-label="${esc(r.name)} full forecast"></a>
       <header>
-        <span class="mono ${r.canyon === 'Little Cottonwood' ? 'lcc' : 'bcc'}" aria-hidden="true">${MONO[r.id] || ''}</span>
-        <div class="rc-name"><h2>${esc(r.name)}</h2>${opening ? `<span class="pill warn">${opening}</span>` : ''}<p>${esc(r.canyon)} · forecast at ${ft(r.point.ft)}\u00a0ft</p></div>
+        ${resortBadge(r)}
+        <div class="rc-name"><div class="rc-title"><h2>${esc(r.name)}</h2>${opening ? `<span class="pill warn">${opening}</span>` : ''}</div><p>${ft(r.point.ft)} ft · ${esc(r.canyon)}</p></div>
         <button class="icon-btn star${star ? ' on' : ''}" data-star="${r.id}" aria-pressed="${star}" aria-label="${star ? 'Unstar' : 'Star'} ${esc(r.name)}">${ICON.star}</button>
       </header>
       ${cardBody(r)}
     </article>`;
   }).join('');
+  document.querySelectorAll('.rcard').forEach(c => { const s = c.querySelector('.st-scroll'); if (s) s.scrollLeft = kept[c.dataset.id] || 0; });
+  fitStrips();
 }
 
 async function load(force) {
@@ -70,7 +64,8 @@ async function load(force) {
 
 $('list').addEventListener('click', ev => {
   const btn = ev.target.closest('[data-star]');
-  if (!btn) return;
+  // The strip sits above the card's link so it can be swiped; a tap on it still opens the forecast
+  if (!btn) { const card = ev.target.closest('.strip') && ev.target.closest('.rcard'); if (card) location.href = card.querySelector('.rc-link').href; return; }
   const id = btn.dataset.star, f = favs();
   setFavs(f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
   render();

@@ -29,32 +29,51 @@ function rangeText(ens, blend) {
   return blend == null ? '–' : `${Math.round(blend)}"`;
 }
 
-// days: build().days (or a slice). max: inches at full height, so separate groups share a scale.
-// marks: indexes that start a new 5-day block (dashed line before them). tipAttr: 'data-tip' on
-// pages with their own tooltip (forecast.js), else the browser's title. tight: drop the inch mark
-// from the labels (on by default past 10 columns; the forecast summary's three side-by-side
-// groups of 5 are just as narrow on a phone).
-function snowBars(days, { max, marks = [5, 10], todayFirst = true, compact = false, tipAttr = 'title', tight = days.length > 10 } = {}) {
+// The bars under snowStrip()'s block headers, one column a day with a big one-letter day label
+// (weekends in bold). max: inches at full height. marks: indexes that start a new 5-day block
+// (dashed line before them). tipAttr: the attribute that carries each day's hover text.
+// numbers: false leaves the bars unlabelled (the resorts list). Labels drop the inch mark (the
+// legend says inches), so two-digit neighbours never run together.
+function snowBars(days, { max, marks = [5, 10], todayFirst = true, tipAttr = 'title', numbers = true } = {}) {
   const top = max ?? Math.max(4, ...days.map(d => d.snow || 0));
-  return `<div class="sb${compact ? ' compact' : ''}" style="--n:${days.length}">${days.map((d, i) => {
+  return `<div class="sb" style="--n:${days.length}">${days.map((d, i) => {
     const v = d.snow || 0, cls = snowClass(d), type = precipType(d);
     const lr = likelyRange(d.ens, d.snow);
     const tip = `${dow(d.date)} ${dom(d.date)}: ${v.toFixed(1)}" ${type === 'none' ? '' : PTYPE_NAME[type].toLowerCase()}`
       + (lr && lr[1] >= 0.5 ? ` · likely ${rangeText(d.ens, d.snow)}` : '')
       + (d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
-    // Compact rows (the resorts list) only label the 6"+ days, without the inch mark so neighbours
-    // don't touch; the group totals carry the rest
-    // Tight rows drop the inch mark too (the legend says inches), so two-digit neighbours like
-    // 14 and 18 never run together on a 390 pt phone
-    const lab = tight ? snowLabel(v).replace('"', '') : snowLabel(v);
-    const label = compact ? (cls === 'pow' ? Math.round(v) : '') : type === 'rain' && v < 0.5 ? '<small>rain</small>' : lab;
-    const isToday = todayFirst && i === 0;
-    return `<div class="sb-col${isToday ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
+    const label = !numbers ? '' : type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v).replace('"', '');
+    return `<div class="sb-col${todayFirst && i === 0 ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" data-i="${i}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
       <div class="sb-area"><i class="t-${cls}" style="height:${type === 'none' ? 0 : Math.max(4, Math.min(100, 100 * v / top))}%">${label === '' ? '' : `<span class="sb-v">${label}</span>`}</i></div>
-      <span class="sb-d">${isToday ? 'Tdy' : dow(d.date).slice(0, compact ? 1 : 2)}<br><b>${dom(d.date)}</b></span>
+      <span class="sb-d${/Sat|Sun/.test(dow(d.date)) ? ' we' : ''}">${dow(d.date)[0]}<b>${dom(d.date)}</b></span>
     </div>`;
   }).join('')}</div>`;
 }
+
+// The 15 days as a strip you swipe sideways, so each day gets a readable column and a phone shows
+// about a week at a time: the snow measured in the last 24 h, then each 5-day block with its total
+// over its bars. last: snotelDaily()'s latest day (leave it out to drop that box); station: its
+// SNOTEL's name. Call fitStrips() after putting one on the page.
+function snowStrip(days, { last, station, numbers = true, tipAttr = 'title' } = {}) {
+  const max = Math.max(4, ...days.map(d => d.snow || 0));
+  const heads = [[0, 5, 'Next 1–5 days'], [5, 10, 'Days 6–10'], [10, 15, 'Days 11–15']].filter(([a]) => a < days.length).map(([a, z, label]) => {
+    const ds = days.slice(a, z), tot = ds.reduce((s, d) => s + (d.snow || 0), 0);
+    const short = ds.some(d => d.snow == null) ? '<sup title="Some models end before these days">*</sup>' : '';
+    return `<div class="st-g${a ? ' wk' : ''}" style="grid-column:${a + 1} / span ${ds.length}"><span>${label}</span><b class="${tot >= 12 ? 'pow' : ''}">${Math.round(tot)}"${short}</b></div>`;
+  }).join('');
+  const now = last === undefined ? '' : `<div class="st-now"><span>Last 24 h</span><b class="${last?.gain ? '' : 'dim'}">${last ? last.gain + '"' : '–'}</b><small>${station ? `${station} SNOTEL` : 'SNOTEL'}</small></div>`;
+  return `<div class="strip"><div class="st-scroll"><div class="st-track">${now}<div class="st-days" style="--n:${days.length}"><div class="st-heads">${heads}</div>${snowBars(days, { max, numbers, tipAttr })}</div></div></div></div>`;
+}
+// Fade a strip's right edge while there are more days off screen to swipe to
+const fitStrip = s => s.classList.toggle('at-end', s.scrollLeft + s.clientWidth >= s.scrollWidth - 4);
+const fitStrips = () => document.querySelectorAll('.st-scroll').forEach(fitStrip);
+document.addEventListener('scroll', ev => { if (ev.target.classList?.contains('st-scroll')) fitStrip(ev.target); }, true);
+addEventListener('resize', fitStrips);
+
+// A resort's logo on a white tile, over its initials so the initials show if the file is missing
+// (logos/ is git-ignored: the logos are the resorts' trademarks, so they aren't in the open repo)
+const INITIALS = { alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO' };
+const resortBadge = r => `<span class="rbadge ${r.canyon === 'Little Cottonwood' ? 'lcc' : 'bcc'}" aria-hidden="true">${INITIALS[r.id] || r.name.slice(0, 2).toUpperCase()}${r.logo ? `<img src="${r.logo}" alt="" onerror="this.remove()">` : ''}</span>`;
 
 const snowLegend = () => `<div class="sb-legend"><span><i class="t-snow"></i>Snow</span><span><i class="t-mix"></i>Mix</span><span><i class="t-rain"></i>Rain</span><span><i class="t-pow"></i>${POWDER_IN}"+ day</span><span class="sb-unit">Inches</span></div>`;
 

@@ -14,7 +14,6 @@
 .chev svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 .snow .card-head .muted { white-space: nowrap; }
-.snow .stats-row { margin-bottom: var(--sp-3); }
 /* landscape chart: wider than tall, never stretched to fill a tall phone */
 .chart { --sb-h: clamp(150px, 34vw, 220px); }
 .chart-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; }
@@ -52,6 +51,5 @@
 }
 @media (max-width: 360px) {
   .cards { grid-template-columns: 1fr; }
-  .stat-cell b { font-size: var(--fs-lg); }
 }
 .nw { white-space: nowrap; }   /* keeps a label with its value, e.g. "snow level 9,200′" */
