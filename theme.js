@@ -64,6 +64,16 @@
     // when a long subtitle wraps to two lines on a narrow phone
     const tb = document.querySelector('.topbar');
     if (tb && 'ResizeObserver' in window) new ResizeObserver(() => document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px')).observe(tb);
+    // Subtitles written as <span class="part"> parts read "a · b" on one line, or one part per line
+    // when that doesn't fit, so no line ends on a dangling "·"
+    const sub = tb?.querySelector('.sub');
+    const fit = () => {
+      const parts = !!sub.querySelector('.part');
+      sub.classList.toggle('parts', parts);
+      sub.classList.remove('stack');
+      if (parts && sub.scrollWidth > sub.clientWidth + 1) sub.classList.add('stack');
+    };
+    if (sub) { new MutationObserver(fit).observe(sub, { childList: true, subtree: true, characterData: true }); addEventListener('resize', fit); fit(); }
     // No-signal bar
     const bar = document.createElement('div');
     bar.className = 'offline-bar'; bar.setAttribute('role', 'status');

@@ -22,7 +22,13 @@ a.map-btn { padding: 0; width: 48px; }
 .avy-btn { padding: 0 6px 0 14px; cursor: pointer; white-space: nowrap; min-width: 0; }
 .avy-btn b { padding: 7px 10px; border-radius: var(--r-pill); background: var(--surface-3); font-size: var(--fs-sm); }
 .avy-btn-label { font-weight: 700; }
-@media (max-width: 380px) { .focus-btn span { display: none; } }
+@media (max-width: 380px) {
+  .focus-btn span { display: none; }
+  /* too narrow for "Avalanche" beside the rating: a small label above it instead */
+  .avy-btn { flex-direction: column; gap: 2px; padding: 0 12px; }
+  .avy-btn-label { font-size: 10px; line-height: 1; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .avy-btn b { padding: 2px 8px; font-size: var(--fs-xs); }
+}
 
 /* MapLibre's own controls, sized for gloves and matched to the app */
 .maplibregl-ctrl-group { background: var(--panel) !important; border: 1px solid var(--line); border-radius: 14px !important; box-shadow: var(--shadow) !important; backdrop-filter: blur(12px); overflow: hidden; }

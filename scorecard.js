@@ -81,9 +81,11 @@ function renderWind(s) {
     const r = await fetch('api/scorecard');
     if (!r.ok) throw new Error(`${r.status}: the scorecard only runs on the deployed site`);
     const s = await r.json();
-    $('status').textContent = s.since
-      ? `${s.snapshots} forecasts since ${day(s.since)}: ${s.snapshots - s.reconstructed} saved live${s.liveSince ? ` (from ${day(s.liveSince)})` : ''}, ${s.reconstructed} reconstructed ↺`
+    // Short enough for a phone header; the day saving went live is in the reconstructed-days note
+    $('status').innerHTML = s.since
+      ? `<span class="part">${s.snapshots} forecasts since ${day(s.since)}</span><span class="part">${s.snapshots - s.reconstructed} live, ${s.reconstructed} reconstructed ↺</span>`
       : 'No forecasts saved yet';
+    if (s.liveSince) $('live-since').textContent = ` on ${day(s.liveSince)}`;
     $('recon-note').hidden = !s.reconstructed;
     renderWater(s); renderTemp(s); renderPeaks(s); renderRecent(s); renderWind(s);
   } catch (e) {

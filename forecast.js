@@ -60,7 +60,7 @@ function renderPeriods(b) {
       ${wxIcon(p) || '<span class="wx"></span>'}
       <span class="pmeta">
         ${note ? `<span class="mlk"><span class="lbl">${note[2]} </span><b>${note[0]}</b></span>` : ''}
-        <span><span class="lbl">Ratio </span><b>${p.slr ? Math.round(p.slr) + ':1' : '–'}</b></span>
+        <span${p.slr ? '' : ' class="nr"'}><span class="lbl">Ratio </span><b>${p.slr ? Math.round(p.slr) + ':1' : '–'}</b></span>
         <span><span class="lbl">Snow lvl </span><b>${lvl(p)}</b></span>
         <span><span class="lbl">Precip </span><b>${p.chance == null ? '–' : Math.round(p.chance) + '%'}</b></span>
         <span><span class="lbl">Wind </span><b>${wind(p.wd, p.ws)}</b>${p.wg ? ` <span class="lbl">g</span><span class="lbl">${r0(p.wg)}</span>` : ''}</span>
@@ -130,9 +130,14 @@ function renderModels(b) {
   renderCumulative(b);
 }
 
+// Redraw the models chart when its width changes (turning the phone, resizing the window)
+let cumB = null;
+if ('ResizeObserver' in window) { let w0 = 0; new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (cumB && Math.abs(w - w0) > 2) { w0 = w; renderCumulative(cumB); } }).observe($('cumulative')); }
 function renderCumulative(b) {
-  const W = 720, H = 240, L = 36, R = 64, T = 12, B = 26;
+  cumB = b;
+  const W = Math.max(280, Math.round($('cumulative').clientWidth) || 720), H = W < 500 ? 210 : 240, L = 34, R = 76, T = 12, B = 26;
   const n = b.days.length;
+  const every = Math.max(2, Math.ceil(26 / ((W - L - R) / n)));   // a day label every 2nd or 3rd day, never touching
   const series = MODELS.map(m => {
     let s = 0; const pts = [];
     b.days.forEach((d, i) => { if (d.byModel[m.id] == null) return; s += d.byModel[m.id]; pts.push([i + 1, s]); });
@@ -148,18 +153,19 @@ function renderCumulative(b) {
   const step = ymax > 60 ? 20 : ymax > 30 ? 10 : 5;
   const grid = []; for (let v = 0; v <= ymax; v += step) grid.push(v);
   const bandPath = band.length > 1 ? `M${band.map(p => `${x(p[0])},${y(p[2])}`).join('L')}L${band.slice().reverse().map(p => `${x(p[0])},${y(p[1])}`).join('L')}Z` : '';
-  // Direct labels at line ends, nudged apart so they don't collide
+  // Labels in a column at the right edge, level with each line's end and nudged apart so they don't collide
+  // (NBM stops a few days early, so a label at its own end would sit on the other lines)
   const ends = [...series.map(s => ({ name: s.name, color: s.color, v: s.pts.at(-1)[1], i: s.pts.at(-1)[0] })), { name: 'Blend', color: 'var(--text)', v: bs, i: n }]
     .sort((a, b2) => b2.v - a.v);
   let lastY = -Infinity;
   ends.forEach(e => { e.y = Math.max(y(e.v), lastY + 13); lastY = e.y; });
   $('cumulative').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative snow by model over ${n} days">
     ${grid.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}"</text>`).join('')}
-    ${b.days.map((d, i) => (i % 2 === 0) ? `<text x="${x(i + 0.5)}" y="${H - 8}" class="ax" text-anchor="middle">${dow(d.date)[0]}${dom(d.date)}</text>` : '').join('')}
+    ${b.days.map((d, i) => (i % every === 0) ? `<text x="${x(i + 0.5)}" y="${H - 8}" class="ax" text-anchor="middle">${dow(d.date)[0]}${dom(d.date)}</text>` : '').join('')}
     ${bandPath ? `<path d="${bandPath}" class="band"/>` : ''}
     ${series.map(s => `<path d="${path(s.pts)}" fill="none" stroke="${s.color}" stroke-width="2"/>`).join('')}
     <path d="${path(blend)}" fill="none" stroke="var(--text)" stroke-width="3"/>
-    ${ends.map(e => `<text x="${x(e.i) + 6}" y="${e.y + 4}" class="lbl" fill="${e.color}">${e.name} ${Math.round(e.v)}"</text>`).join('')}
+    ${ends.map(e => `<text x="${W - R + 6}" y="${e.y + 4}" class="lbl" fill="${e.color}">${e.name} ${Math.round(e.v)}"</text>`).join('')}
     <line id="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" class="cross" visibility="hidden"/>
     <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="cum-hit"/>
   </svg>`;
@@ -208,13 +214,14 @@ function renderObserved(data) {
       return `<div><span>${lbl}</span><b>${g.reduce((s, x) => s + x.gain, 0)}"</b><small>${g.reduce((s, x) => s + (x.water || 0), 0).toFixed(2)}" water</small></div>`;
     }).join('')}</div>
     <div class="bars obs">${last.map(x => `<div class="bar" data-tip="${esc(`${dow(x.date)} ${dom(x.date)}: depth ${x.depth ?? '–'}" (${x.change == null ? '–' : (x.change > 0 ? '+' : '') + x.change}") · water ${x.water == null ? '–' : x.water.toFixed(2)}" · ${x.temp ?? '–'}°F`)}">
-      <span class="bv">${x.gain ? x.gain + '"' : ''}</span><div class="area"><i style="height:${Math.max(2, 100 * x.gain / max)}%"></i></div><span class="bd">${dow(x.date)[0]}<br>${dom(x.date)}</span></div>`).join('')}</div>
+      <div class="area"><i style="height:${Math.max(2, 100 * x.gain / max)}%">${x.gain ? `<span class="bv">${x.gain}</span>` : ''}</i></div><span class="bd">${dow(x.date)[0]}<br>${dom(x.date)}</span></div>`).join('')}</div>
     <p class="hint">New snow here is the rise in measured depth at the ${esc(R.snotel.name)} SNOTEL (${ft(R.snotel.ft)} ft, ${R.snotel.km < 1 ? `at ${esc(R.name)}` : `${R.snotel.km} km from ${esc(R.name)}'s forecast point`}), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
 }
 
 function renderNws(data) {
   const al = data.alerts?.features || [];
-  $('alerts').innerHTML = al.length ? al.map(f => `<div class="alert"><b>${esc(f.properties.event)}</b> ${esc(f.properties.headline || '')}</div>`).join('') : '';
+  const until = t => t ? ` <span class="muted">until ${new Date(t).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' })}</span>` : '';
+  $('alerts').innerHTML = al.map(({ properties: a }) => `<details class="alert"><summary><b>${esc(a.event)}</b>${until(a.ends || a.expires)}</summary>${a.description ? `<p>${esc(a.description)}</p>` : ''}<small>${esc(a.senderName || 'NWS')}</small></details>`).join('');
   const afd = data.afd?.productText;
   if (!afd) { $('afd').innerHTML = '<p class="muted">Forecast discussion unavailable.</p>'; return; }
   // Lead with the key messages / synopsis, then the full text
@@ -364,7 +371,8 @@ async function load(force) {
     const errs = Object.entries(res.errors);
     const when = new Date(res.at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
     const down = errs.filter(([k]) => k !== 'corrections');
-    $('status').innerHTML = `${ft(R.point.ft)} ft · updated ${when}` + (down.length ? ` · <span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>` : '');
+    $('status').innerHTML = [`${ft(R.point.ft)} ft`, `updated ${when}`, ...(down.length ? [`<span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>`] : [])]
+      .map(t => `<span class="part">${t}</span>`).join('');
     $('alerts').insertAdjacentHTML('beforeend', down.length ? `<div class="alert"><b>Some sources didn't answer:</b> ${esc(down.map(([k]) => k).join(', '))}. The rest of the blend is shown.</div>` : '');
     window.resortForecast = b; // handy for poking at numbers in the console
   } catch (e) {

@@ -12,7 +12,7 @@ function renderTotals(b, data) {
   const last = snotelDaily(data.snotel).at(-1);
   const cell = (v, label, cls = '') => `<div class="stat-cell ${cls}"><b>${v}</b><span>${label}</span></div>`;
   const n5 = tot(0, 5);
-  $('totals').innerHTML = cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')
+  $('totals').innerHTML = cell(last ? last.gain + '"' : '–', 'Last 24\u00a0h', 'dim')
     + cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '') + cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010') + cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015');
 }
 
@@ -32,7 +32,7 @@ function renderToday(b) {
   const lvl = day?.snowLevel ?? day?.fz;
   $('today').innerHTML = `<h2 class="eyebrow">${label} at Alta</h2>
     <div class="big">${t(day?.tempF)} <small>/ ${t(night?.tempF)}</small></div>
-    <p>Wind <b>${day?.ws == null ? '–' : SNOW.compass(day.wd) + ' ' + Math.round(day.ws)}</b> mph${day?.wg ? `, gusts ${Math.round(day.wg)}` : ''}${lvl ? ` · ${day?.snowLevel != null ? 'snow level' : 'freezing'} <b>${(Math.round(lvl / 100) * 100).toLocaleString()}′</b>` : ''}</p>`;
+    <p>Wind <b>${day?.ws == null ? '–' : SNOW.compass(day.wd) + ' ' + Math.round(day.ws)}</b> mph${day?.wg ? `, gusts ${Math.round(day.wg)}` : ''}${lvl ? ` · <span class="nw">${day?.snowLevel != null ? 'snow level' : 'freezing'} <b>${(Math.round(lvl / 100) * 100).toLocaleString()}′</b></span>` : ''}</p>`;
 }
 
 async function renderAvy() {

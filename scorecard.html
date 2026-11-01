@@ -20,7 +20,7 @@
   <main class="page-main">
     <p class="lede">How the Alta forecast has done against what the Atwater SNOTEL measured.</p>
 
-    <p class="card recon-note" id="recon-note" hidden><b>↺ Reconstructed days.</b> Forecasts before the nightly job started were rebuilt afterwards: the same forecast code, run as of each past morning on what each model actually forecast then (Open-Meteo's archive of past model runs). Three differences from a live forecast: the storm direction comes from what the 700 mb wind actually did rather than what was forecast, which flatters the reconstruction slightly; the snow ratio uses only the 9,895 ft temperature; and there's no wind. Anything marked ↺ is reconstructed; everything else was saved live that morning.</p>
+    <p class="card recon-note" id="recon-note" hidden><b>↺ Reconstructed days.</b> Forecasts before the nightly job started<span id="live-since"></span> were rebuilt afterwards: the same forecast code, run as of each past morning on what each model actually forecast then (Open-Meteo's archive of past model runs). Three differences from a live forecast: the storm direction comes from what the 700 mb wind actually did rather than what was forecast, which flatters the reconstruction slightly; the snow ratio uses only the 9,895 ft temperature; and there's no wind. Anything marked ↺ is reconstructed; everything else was saved live that morning.</p>
     <section class="card">
       <h2>Water: average miss by how far ahead <span class="muted">· inches of melted snow per day, vs the Atwater gauge</span></h2>
       <div id="water" class="scroll-x"></div>

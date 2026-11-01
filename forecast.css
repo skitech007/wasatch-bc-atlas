@@ -25,7 +25,11 @@
 .jumpnav a:hover { background: var(--surface-4); }
 .fc section[id] { scroll-margin-top: 120px; }
 
-#alerts .alert { max-width: 1080px; margin: var(--sp-3) auto 0; padding: var(--sp-3); border-radius: var(--r-md); background: rgba(216, 58, 46, 0.12); border: 1px solid #d83a2e; font-size: var(--fs-sm); width: calc(100% - 32px); box-sizing: border-box; }
+#alerts .alert { --gut: var(--sp-4); max-width: calc(1080px - 2 * var(--gut)); margin: var(--sp-3) auto 0; padding: var(--sp-3); border-radius: var(--r-md); background: rgba(216, 58, 46, 0.12); border: 1px solid #d83a2e; font-size: var(--fs-sm); width: calc(100% - 2 * var(--gut)); box-sizing: border-box; }   /* same edges as the cards below */
+#alerts summary { cursor: pointer; }
+#alerts summary .muted { white-space: nowrap; }
+#alerts .alert p { margin: var(--sp-2) 0 var(--sp-1); white-space: pre-line; line-height: 1.45; }
+#alerts .alert small { color: var(--muted); }
 
 /* ---------- summary: three 5-day groups, each with its own 6"+ odds row under its bars ---------- */
 .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
@@ -59,7 +63,7 @@
 .prow .wx { grid-area: wx; }
 .prow .pmeta { grid-area: meta; display: flex; flex-wrap: wrap; gap: 2px var(--sp-3); font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .prow .pmeta b { color: var(--text); font-weight: 650; }
-.prow .pmeta .x { display: none; }
+.prow .pmeta .x, .prow .pmeta .nr { display: none; }   /* .nr: "Ratio –" on a dry period, phone only */
 .prow .pmeta .mlk b { color: var(--text); }
 .phead { display: none; }
 
@@ -69,7 +73,7 @@
   .prow > *, .phead > * { grid-area: auto !important; }
   .prow .pmeta { display: contents; }
   .prow .pmeta > span { text-align: center; }
-  .prow .pmeta .x { display: inline; }
+  .prow .pmeta .x, .prow .pmeta .nr { display: inline; }
   .prow .pmeta .mlk { display: none; }
   .prow .pchip small { display: inline; }
   .prow .pmeta .lbl { display: none; }
@@ -136,7 +140,12 @@ th small, td small { display: block; font-size: 10px; color: var(--muted); font-
 .obs-groups div { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); }
 .obs-groups span { color: var(--muted); font-size: var(--fs-xs); display: block; }
 .obs-groups b { font-size: var(--fs-lg); }
-.obs-groups small { color: var(--muted); margin-left: 6px; }
+.obs-groups small { display: block; color: var(--muted); font-size: var(--fs-xs); }
+@media (max-width: 380px) {   /* three boxes are too narrow on a small phone: one row each */
+  .obs-groups { grid-template-columns: 1fr; gap: var(--sp-1); }
+  .obs-groups div { display: flex; align-items: baseline; gap: var(--sp-2); }
+  .obs-groups span { flex: 1; font-size: var(--fs-sm); }
+}
 .bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; height: 150px; }
 .bars.obs { grid-template-columns: repeat(15, 1fr); height: 120px; margin-top: var(--sp-3); }
 .bar { display: flex; flex-direction: column; align-items: center; min-width: 0; cursor: default; outline-offset: 2px; }
@@ -144,7 +153,10 @@ th small, td small { display: block; font-size: 10px; color: var(--muted); font-
 .bar .area { position: relative; flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 .bar .area i { display: block; width: 70%; max-width: 34px; background: var(--s1); border-radius: 4px 4px 0 0; }
 .bar .bd { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.2; margin-top: 3px; }
-.bars.obs .bar .area i { width: 60%; }
+.bars.obs .bar .area i { position: relative; width: 60%; }
+/* each day's number sits just above its own bar, inside the area's headroom */
+.bars.obs .bar .area { padding-top: 16px; }
+.bars.obs .bv { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); height: auto; margin: 0 0 2px; font-style: normal; line-height: 14px; white-space: nowrap; color: var(--text); }
 
 .afd pre { white-space: pre-wrap; font-size: var(--fs-xs); line-height: 1.55; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--sp-3); max-height: 420px; overflow: auto; }
 .afd-lead { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
@@ -196,5 +208,6 @@ code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; font-
 }
 @media (max-width: 420px) {
   .fc .page-main { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  #alerts .alert { --gut: var(--sp-3); }
   .card { padding: var(--sp-3); }
 }

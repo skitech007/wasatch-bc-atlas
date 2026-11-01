@@ -54,3 +54,4 @@
   .cards { grid-template-columns: 1fr; }
   .stat-cell b { font-size: var(--fs-lg); }
 }
+.nw { white-space: nowrap; }   /* keeps a label with its value, e.g. "snow level 9,200′" */

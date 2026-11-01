@@ -30,7 +30,7 @@ function cardBody(r) {
   const st = biggestStorm(b.days);
   const n5 = tot(0, 5);
   const cell = (v, l, c = '') => `<div class="stat-cell ${c}"><b>${v}</b><span>${l}</span></div>`;
-  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24 h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010')}${cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015')}</div>
+  return `<div class="stats-row">${cell(last ? last.gain + '"' : '–', 'Last 24\u00a0h', 'dim')}${cell(n5 + '"', 'Next 5 days', n5 >= 12 ? 'pow' : '')}${cell(tot(5, 10) + '"', 'Days 6\u2060–\u206010')}${cell(tot(10, 15) + '"', 'Days 11\u2060–\u206015')}</div>
     ${snowBars(b.days, { compact: true })}
     <p class="rc-line">${st ? `<span class="${st.total >= 6 ? 'pow' : ''}">${st.first ? 'Next storm' : 'Biggest storm'} <b>${Math.round(st.total)}"</b> ${st.when}</span>` : '<span>No storm in 15 days</span>'}<span>${label} <b>${deg(day?.tempF)}</b> / ${deg(night?.tempF)}${day?.ws != null ? ` · ${SNOW.compass(day.wd)} ${Math.round(day.ws)} mph` : ''}</span></p>`;
 }
@@ -44,7 +44,7 @@ function render() {
       <a class="rc-link" href="forecast.html?r=${r.id}" aria-label="${esc(r.name)} full forecast"></a>
       <header>
         <span class="mono ${r.canyon === 'Little Cottonwood' ? 'lcc' : 'bcc'}" aria-hidden="true">${MONO[r.id] || ''}</span>
-        <div class="rc-name"><h2>${esc(r.name)}${opening ? ` <span class="pill warn">${opening}</span>` : ''}</h2><p>${esc(r.canyon)} · forecast at ${ft(r.point.ft)} ft</p></div>
+        <div class="rc-name"><h2>${esc(r.name)}</h2>${opening ? `<span class="pill warn">${opening}</span>` : ''}<p>${esc(r.canyon)} · forecast at ${ft(r.point.ft)}\u00a0ft</p></div>
         <button class="icon-btn star${star ? ' on' : ''}" data-star="${r.id}" aria-pressed="${star}" aria-label="${star ? 'Unstar' : 'Star'} ${esc(r.name)}">${ICON.star}</button>
       </header>
       ${cardBody(r)}
@@ -65,7 +65,7 @@ async function load(force) {
   const ok = resorts.filter(r => got[r.id]?.raw);
   const at = Math.min(...ok.map(r => got[r.id].raw.at));
   $('refresh').classList.remove('spin');
-  $('status').textContent = ok.length ? `Cottonwood Canyons · updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Forecasts unavailable';
+  $('status').innerHTML = ok.length ? `<span class="part">Cottonwood Canyons</span><span class="part">updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>` : 'Forecasts unavailable';
 }
 
 $('list').addEventListener('click', ev => {
