@@ -5,7 +5,7 @@ Three corrections, all against the resort's SNOTEL from data/resorts.json (Alta:
   2. Storm direction: how that ratio changes with the 700 mb wind direction (NW, W, SW, other),
      per model, shrunk toward 1 when a direction has few wet days.
   3. Temperature: mean observed − forecast °F, per model, calendar month and 3-hour block of the
-     day (MST), from 1-day-ahead forecasts over every month in the archive. The bias swings with the
+     day (local standard time), from 1-day-ahead forecasts over every month in the archive. The bias swings with the
      season (4–6°F on winter nights, 0–2°F in fall), so a winter-only number made fall lows worse.
      The forecast averages this with a rolling 14-day bias the nightly worker measures.
 
@@ -14,7 +14,7 @@ past 700 mb wind direction from Open-Meteo's archived short-range GFS. Wind can'
 here (SNOTELs don't measure wind); for Alta the nightly worker learns it from Hidden Peak instead.
 Writes data/<resort>_calibration.json.
 
-Run: python3 -I tools/calibrate.py alta    (or snowbird, brighton, solitude)
+Run: python3 -I tools/calibrate.py alta    (or snowbird, brighton, solitude, palisades)
 """
 import json, math, sys, time, urllib.request, datetime as dt, pathlib
 from collections import defaultdict
@@ -31,7 +31,9 @@ MODELS = ['ncep_nbm_conus', 'ecmwf_ifs025', 'gfs_global', 'gem_seamless']
 LEADS = range(1, 8)
 # Winter months only, when Alta's precipitation is mostly snow. The Previous Runs archive starts in 2024.
 SEASONS = [('2024-11-15', '2025-04-15'), ('2025-11-15', '2026-04-15')]
-MST = dt.timedelta(hours=-7)  # SNOTEL reports in local standard time all year
+# SNOTEL reports in local standard time all year: MST in Utah, PST at Palisades Tahoe
+ZONE, STD_H = {'America/Denver': ('MST', -7), 'America/Los_Angeles': ('PST', -8)}[RESORT.get('tz', 'America/Denver')]
+STD = dt.timedelta(hours=STD_H)
 TEMP_START = dt.date(2024, 3, 1)  # Previous Runs archive start, near enough
 SHRINK_DAYS = 15              # a direction needs about this many wet days before its multiplier counts fully
 
@@ -55,7 +57,7 @@ def snotel(element, duration, start, end):
 
 
 def observed_water(start, end):
-    """Daily water (in) from the accumulated-precipitation gauge, by MST date."""
+    """Daily water (in) from the accumulated-precipitation gauge, by local standard-time date."""
     s = (dt.date.fromisoformat(start) - dt.timedelta(days=1)).isoformat()
     vals = [(d[:10], v) for d, v in snotel('PREC', 'DAILY', s, end)]
     out = {}
@@ -73,7 +75,7 @@ def observed_temps(start, end):
             prev = v if v is not None else prev
             continue
         prev = v
-        utc = dt.datetime.fromisoformat(d) - MST
+        utc = dt.datetime.fromisoformat(d) - STD
         out[utc.strftime('%Y-%m-%dT%H:00')] = v
     return out
 
@@ -86,12 +88,12 @@ def previous_runs(lat, lon, elev, var, start, end, unit=''):
     return d['hourly']
 
 
-def mst_date(utc_key):
-    return (dt.datetime.fromisoformat(utc_key) + MST).date().isoformat()
+def std_date(utc_key):
+    return (dt.datetime.fromisoformat(utc_key) + STD).date().isoformat()
 
 
 def flow_by_day(start, end):
-    """Speed-weighted mean 700 mb wind direction per MST day, from archived short-range GFS."""
+    """Speed-weighted mean 700 mb wind direction per local standard-time day, from archived short-range GFS."""
     d = get('https://historical-forecast-api.open-meteo.com/v1/forecast'
             f'?latitude={FC_LAT}&longitude={FC_LON}&start_date={start}&end_date={end}'
             '&hourly=wind_direction_700hPa,wind_speed_700hPa&models=gfs_global&timezone=GMT')
@@ -100,7 +102,7 @@ def flow_by_day(start, end):
     for t, wd, ws in zip(h['time'], h['wind_direction_700hPa'], h['wind_speed_700hPa']):
         if wd is None or ws is None:
             continue
-        a = acc[mst_date(t)]
+        a = acc[std_date(t)]
         a[0] += ws * math.sin(math.radians(wd)); a[1] += ws * math.cos(math.radians(wd))
     return {day: (math.degrees(math.atan2(x, y)) + 360) % 360 for day, (x, y) in acc.items()}
 
@@ -128,7 +130,7 @@ for start, end in SEASONS:
             daily, seen = defaultdict(float), defaultdict(int)
             for t, v in zip(h['time'], h[f'precipitation_previous_day{n}_{m}']):
                 if v is not None:
-                    daily[mst_date(t)] += v; seen[mst_date(t)] += 1
+                    daily[std_date(t)] += v; seen[std_date(t)] += 1
             for day, o in obs.items():
                 if seen.get(day) == 24:
                     water_pairs[m][n].append((day, o, daily[day]))
@@ -193,7 +195,7 @@ while a <= last:
         o = tobs.get(t)
         if o is None:
             continue
-        local = dt.datetime.fromisoformat(t) + MST
+        local = dt.datetime.fromisoformat(t) + STD
         for m in MODELS:
             f = h[f'temperature_2m_previous_day1_{m}'][i]
             if f is not None:
@@ -231,7 +233,7 @@ out = {
     'direction_multipliers': direction,
     'direction_detail': direction_detail,
     'temperature_bias_month_3h': temp_bias,
-    'temperature_bias_note': f"observed − forecast °F by calendar month and 3-hour MST block (0 = midnight–3 am), 1-day-ahead forecasts at the {SN['name']} SNOTEL, all months from 2024-03 to 45 days before generation",
+    'temperature_bias_note': f"observed − forecast °F by calendar month and 3-hour {ZONE} block (0 = midnight–3 am), 1-day-ahead forecasts at the {SN['name']} SNOTEL, all months from 2024-03 to 45 days before generation",
     'temperature_mae_f': temp_mae,
     'temperature_wet_adjust': wet_adjust,
     'temperature_wet_note': 'mean observed − (forecast + month table) °F in November–April hours when the model forecast 0.01"+ of precipitation; added to the correction in those hours',

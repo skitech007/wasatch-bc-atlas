@@ -59,7 +59,7 @@ async function load(force) {
   const ok = resorts.filter(r => got[r.id]?.raw);
   const at = Math.min(...ok.map(r => got[r.id].raw.at));
   $('refresh').classList.remove('spin');
-  $('status').innerHTML = ok.length ? `<span class="part">Cottonwood Canyons</span><span class="part">updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>` : 'Forecasts unavailable';
+  $('status').innerHTML = ok.length ? `<span class="part">Cottonwoods &amp; Tahoe</span><span class="part">updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>` : 'Forecasts unavailable';
 }
 
 $('list').addEventListener('click', ev => {

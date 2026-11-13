@@ -11,7 +11,7 @@ const SHELL = [
   'risk.js', 'sun.js', 'avalanche.js', 'forecast.html', 'forecast.css', 'forecast.js', 'forecast-data.js', 'snow.js',
   'snowbars.js', 'theme.js', 'resorts.html', 'resorts.css', 'resorts.js', 'data/resorts.json',
   'scorecard.html', 'scorecard.js', 'badge.svg', 'alta-mountain.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png',
-  'data/alta_calibration.json', 'data/snowbird_calibration.json', 'data/brighton_calibration.json', 'data/solitude_calibration.json',
+  'data/alta_calibration.json', 'data/snowbird_calibration.json', 'data/brighton_calibration.json', 'data/solitude_calibration.json', 'data/palisades_calibration.json',
   'data/avalanche_paths.geojson', 'data/uac_zones.geojson', 'data/uac_routes.json',
   'data/tours.geojson', 'data/nhd_streams.geojson', 'lib/maplibre-gl-5.24.0.js', 'lib/maplibre-gl-5.24.0.css',
 ];

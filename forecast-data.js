@@ -27,8 +27,9 @@ const ENSEMBLES = [
 const leadOf = hoursAhead => Math.min(7, Math.max(1, Math.ceil((hoursAhead + 1) / 24)));
 const factorAt = (calib, model, lead) => calib?.factors?.[model]?.[lead] ?? 1;
 const weightsAt = (calib, lead) => Object.fromEntries(MODELS.map(m => [m.id, calib?.blend_weights?.[m.id]?.[lead] ?? 1]));
-// Temperature correction (°F to add), measured at Atwater in 3-hour blocks of Mountain Standard
-// Time (SNOTEL's clock). Two parts, averaged: a by-month table from the calibration, and a rolling
+// Temperature correction (°F to add), measured at the resort's SNOTEL in 3-hour blocks of local
+// standard time (SNOTEL's clock: MST in Utah, PST at Palisades Tahoe; mstOf gives either, as US
+// daylight-saving rules are the same in both). Two parts, averaged: a by-month table from the calibration, and a rolling
 // 14-day bias per lead day that the nightly worker re-measures (absent locally: table only).
 // The bias swings with the season and snow cover, so neither works well alone.
 function isDst(date) {
@@ -86,9 +87,11 @@ const HOURLY_VARS = ['precipitation', 'temperature_2m', 'temperature_700hPa', 'a
 
 
 // ---------- time ----------
-const keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
-function localKey(date) {
-  const p = Object.fromEntries(keyFmt.formatToParts(date).map(x => [x.type, x.value]));
+// Hour keys ('2026-11-14T06:00') are local time at the resort: Mountain, or Pacific at Palisades Tahoe
+const keyFmts = {};
+function localKey(date, tz = TZ) {
+  keyFmts[tz] ||= new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
+  const p = Object.fromEntries(keyFmts[tz].formatToParts(date).map(x => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;
 }
 const dateOf = k => k.slice(0, 10);
@@ -111,7 +114,7 @@ function periodOf(k) {
 }
 
 // NWS grid values cover ranges like "2026-10-20T22:00:00+00:00/PT2H"; spread them onto local hours.
-function expandNws(series, { spread = false, scale = 1 } = {}) {
+function expandNws(series, { spread = false, scale = 1, tz = TZ } = {}) {
   const out = {};
   for (const { validTime, value } of series?.values || []) {
     if (value == null) continue;
@@ -119,7 +122,7 @@ function expandNws(series, { spread = false, scale = 1 } = {}) {
     const m = dur.match(/P(?:(\d+)D)?(?:T(?:(\d+)H)?)?/);
     const hours = (+(m[1] || 0)) * 24 + (+(m[2] || 0)) || 1;
     const t0 = new Date(start).getTime();
-    for (let i = 0; i < hours; i++) out[localKey(new Date(t0 + i * 3600e3))] = value * scale / (spread ? hours : 1);
+    for (let i = 0; i < hours; i++) out[localKey(new Date(t0 + i * 3600e3), tz)] = value * scale / (spread ? hours : 1);
   }
   return out;
 }
@@ -128,7 +131,7 @@ function expandNws(series, { spread = false, scale = 1 } = {}) {
 let resortsP = null;
 async function loadResorts() {
   resortsP ||= getJSON('data/resorts.json').then(c => c.resorts.map(r => ({
-    ...r, point: { ...r.point, elevM: Math.round(r.point.ft * 0.3048) },
+    ...r, tz: r.tz || TZ, point: { ...r.point, elevM: Math.round(r.point.ft * 0.3048), tz: r.tz || TZ },
   }))).catch(e => { resortsP = null; throw e; });
   return resortsP;
 }
@@ -146,7 +149,7 @@ async function getJSON(url, ms = 12000) {
 
 function omQuery(extra, point = POINT) {
   const q = new URLSearchParams({
-    latitude: point.lat, longitude: point.lon, elevation: point.elevM, forecast_days: 16, timezone: TZ,
+    latitude: point.lat, longitude: point.lon, elevation: point.elevM, forecast_days: 16, timezone: point.tz || TZ,
     temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch', ...extra,
   });
   return q.toString();
@@ -169,7 +172,7 @@ async function fetchAll(force, resortId = 'alta') {
       if (c && Date.now() - c.at < CACHE_MIN * 60e3) return { ...c, resort: r };
     } catch { /* storage unavailable: fetch fresh */ }
   }
-  const today = localKey(new Date()).slice(0, 10);
+  const today = localKey(new Date(), r.tz).slice(0, 10);
   const pt = r.point;
   const jobs = {
     calib: getJSON(`data/${r.id}_calibration.json`),
@@ -180,7 +183,8 @@ async function fetchAll(force, resortId = 'alta') {
     ens: getJSON('https://ensemble-api.open-meteo.com/v1/ensemble?' + omQuery({ hourly: 'precipitation,temperature_2m', models: ENSEMBLES.map(e => e.id).join(',') }, pt)),
     nws: getJSON(`https://api.weather.gov/gridpoints/${r.nws}`),
     alerts: getJSON(`https://api.weather.gov/alerts/active?point=${pt.lat},${pt.lon}`),
-    afd: getJSON('https://api.weather.gov/products/types/AFD/locations/SLC').then(l => getJSON(l['@graph'][0]['@id'])),
+    // Forecast discussion from the resort's NWS office (SLC, or REV for Palisades Tahoe)
+    afd: getJSON(`https://api.weather.gov/products/types/AFD/locations/${r.nws.split('/')[0]}`).then(l => getJSON(l['@graph'][0]['@id'])),
     snotel: getJSON(`https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1/data?stationTriplets=${r.snotel.triplet}&elements=SNWD,WTEQ,PREC,TOBS&duration=DAILY`
       + `&beginDate=${addDays(today, -31)}&endDate=${today}`),
   };
@@ -208,10 +212,12 @@ function build({ data }) {
   if (!det) throw new Error('Model forecast unavailable');
   const M2FT = data.det.hourly_units?.freezing_level_height === 'm' ? 3.28084 : 1;
 
-  const nowKey = localKey(new Date());
+  // Open-Meteo answers in the time zone it was asked for, which is the resort's
+  const tz = data.det.timezone || TZ;
+  const nowKey = localKey(new Date(), tz);
   const today = dateOf(nowKey);
-  const snowLevel = expandNws(data.nws?.snowLevel, { scale: 3.28084 });
-  const nwsSnow = expandNws(data.nws?.snowfallAmount, { spread: true, scale: 1 / 25.4 });
+  const snowLevel = expandNws(data.nws?.snowLevel, { scale: 3.28084, tz });
+  const nwsSnow = expandNws(data.nws?.snowfallAmount, { spread: true, scale: 1 / 25.4, tz });
 
   // Ensemble members: precipitation_member07_ncep_gefs025 etc.; the control run has no member tag.
   const members = [];

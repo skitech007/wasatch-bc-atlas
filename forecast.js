@@ -219,16 +219,17 @@ function renderObserved(data) {
     <p class="hint">New snow here is the rise in measured depth at the ${esc(R.snotel.name)} SNOTEL (${ft(R.snotel.ft)} ft, ${R.snotel.km < 1 ? `at ${esc(R.name)}` : `${R.snotel.km} km from ${esc(R.name)}'s forecast point`}), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
 }
 
+const NWS_OFFICE = { SLC: 'Salt Lake City', REV: 'Reno' };
 function renderNws(data) {
   const al = data.alerts?.features || [];
-  const until = t => t ? ` <span class="muted">until ${new Date(t).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' })}</span>` : '';
+  const until = t => t ? ` <span class="muted">until ${new Date(t).toLocaleString('en-US', { timeZone: R.tz, weekday: 'short', hour: 'numeric', minute: '2-digit' })}</span>` : '';
   $('alerts').innerHTML = al.map(({ properties: a }) => `<details class="alert"><summary><b>${esc(a.event)}</b>${until(a.ends || a.expires)}</summary>${a.description ? `<p>${esc(a.description)}</p>` : ''}<small>${esc(a.senderName || 'NWS')}</small></details>`).join('');
   const afd = data.afd?.productText;
   if (!afd) { $('afd').innerHTML = '<p class="muted">Forecast discussion unavailable.</p>'; return; }
   // Lead with the key messages / synopsis, then the full text
   const m = afd.match(/\.(KEY MESSAGES|SYNOPSIS)\.\.\.([\s\S]*?)(?=\n&&|\n\.[A-Z /]+\.\.\.)/);
-  const issued = new Date(data.afd.issuanceTime).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' });
-  $('afd').innerHTML = `${m ? `<p class="afd-lead"><b>${m[1] === 'KEY MESSAGES' ? 'Key messages' : 'Synopsis'}</b> <span class="muted">· NWS Salt Lake City, ${issued}</span></p><pre>${esc(m[2].trim())}</pre>` : ''}
+  const issued = new Date(data.afd.issuanceTime).toLocaleString('en-US', { timeZone: R.tz, weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  $('afd').innerHTML = `${m ? `<p class="afd-lead"><b>${m[1] === 'KEY MESSAGES' ? 'Key messages' : 'Synopsis'}</b> <span class="muted">· NWS ${NWS_OFFICE[R.nws.split('/')[0]] || R.nws.split('/')[0]}, ${issued}</span></p><pre>${esc(m[2].trim())}</pre>` : ''}
     <details><summary>Full forecast discussion</summary><pre>${esc(afd)}</pre></details>`;
 }
 
@@ -237,10 +238,12 @@ function methodHtml() {
   const n = esc(R.name), st = `${esc(R.snotel.name)} SNOTEL`, pf = `${ft(R.point.ft)} ft`, alta = R.id === 'alta';
   const where = alta ? `${n}'s forecast point (${R.point.lat}, ${R.point.lon}, ${pf})`
     : `${n}'s forecast point (${R.point.lat}, ${R.point.lon}, ${pf}: on the mountain, halfway between the ${ft(R.base_ft)} ft base and ${ft(R.peak_ft)} ft peak)`;
-  const near = R.snotel.km < 1 ? `at ${n}` : `${R.snotel.km} km from the forecast point; ${n} has no SNOTEL of its own`;
+  // Brighton's and Palisades Tahoe's own SNOTELs sit over 1 km from the forecast point; Solitude borrows Brighton's
+  const near = R.snotel.km < 1 ? `at ${n}` : R.snotel.name === R.name ? `on ${n}, ${R.snotel.km} km from the forecast point`
+    : `${R.snotel.km} km from the forecast point; ${n} has no SNOTEL of its own`;
   return `<ol>
     <li><b>Water.</b> Hourly precipitation from four weather models for ${where}, via <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>.</li>
-    <li><b>${n} correction.</b> The models smooth the Wasatch into blobs and miss how much falls at ${n}. For the winters of <span id="method-seasons"></span> (Nov 15 – Apr 15) we compared what each model forecast 1 to 7 days ahead with what fell at the ${st} (${ft(R.snotel.ft)} ft, ${near}), and multiply each model's water by its factor for that lead day (days 8–15 use day 7):
+    <li><b>${n} correction.</b> The models smooth the mountains into blobs and miss how much falls at ${n}. For the winters of <span id="method-seasons"></span> (Nov 15 – Apr 15) we compared what each model forecast 1 to 7 days ahead with what fell at the ${st} (${ft(R.snotel.ft)} ft, ${near}), and multiply each model's water by its factor for that lead day (days 8–15 use day 7):
       <div class="scroll-x"><table class="ftable"><thead><tr><th>Model</th><th>1 day out</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead><tbody id="method-factors"></tbody></table></div>
       Models with smaller day-to-day error after correction get more weight in the blend (hover a factor for details). Rerun <code>tools/calibrate.py ${R.id}</code> to refresh.</li>
     <li><b>Storm direction.</b> ${alta ? 'Alta does best in northwest flow and the models know it least well.' : 'How much falls depends on the storm direction, which the models handle least well.'} Each day is labelled by its 700 mb (about 10,000 ft) wind: NW, W, SW or other. Over the same two winters each model's misses were split by that label, and its water is scaled again for the day's direction. Directions with few wet days are pulled toward no change:
@@ -306,12 +309,12 @@ function renderHeader() {
   const alta = R.id === 'alta';
   $('badge').innerHTML = resortBadge(R);
   $('obs-where').textContent = `· ${R.snotel.name} SNOTEL${R.snotel.km < 1 ? `, ${R.name}` : `, ${R.snotel.km} km away`}`;
-  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. Each day runs 6 pm the night before to 6 pm. Swipe the chart for days 6–15 and tap a day for its likely range and the chance of ${POWDER_IN}"+; Day &amp; night has the range for each 12 hours. Last 24 h is the rise in snow depth at the ${esc(R.snotel.name)} SNOTEL.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
+  $('summary-hint').innerHTML = `Bars are the ${esc(R.name)} blend, coloured by what falls. Each day runs 6 pm the night before to 6 pm${R.tz === 'America/Los_Angeles' ? ' Pacific time, as are all times on this page' : ''}. Swipe the chart for days 6–15 and tap a day for its likely range and the chance of ${POWDER_IN}"+; Day &amp; night has the range for each 12 hours. Last 24 h is the rise in snow depth at the ${esc(R.snotel.name)} SNOTEL.${alta ? ' <a href="scorecard.html">How accurate has it been? Scorecard →</a>' : ''}`;
   $('models-hint').textContent = `Running total of snow at ${R.name} by model, after each model's ${R.name} correction. The grey band covers the middle 80% of the 82 ensemble runs' running totals.`;
-  const today = localKey(new Date()).slice(0, 10);
+  const today = localKey(new Date(), R.tz).slice(0, 10);
   $('opening').innerHTML = R.opening && R.opening > today
-    ? `<span class="pill warn" title="Opening day from Ski Utah">Opens ${new Date(R.opening + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>`
-    : R.opening ? '' : '<span class="pill" title="Ski Utah">Opening TBA</span>';
+    ? `<span class="pill warn" title="Announced opening day">Opens ${new Date(R.opening + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>`
+    : R.opening ? '' : '<span class="pill">Opening TBA</span>';
   renderCams();
 }
 
@@ -367,7 +370,7 @@ async function load(force) {
     renderSummary(b, res.data); renderPeriods(b); renderHourly(b); renderModels(b);
     renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
     const errs = Object.entries(res.errors);
-    const when = new Date(res.at).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+    const when = new Date(res.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const down = errs.filter(([k]) => k !== 'corrections');
     $('status').innerHTML = [`${ft(R.point.ft)} ft`, `updated ${when}`, ...(down.length ? [`<span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>`] : [])]
       .map(t => `<span class="part">${t}</span>`).join('');

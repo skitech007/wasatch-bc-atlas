@@ -72,8 +72,9 @@ addEventListener('resize', fitStrips);
 
 // A resort's logo on a white tile, over its initials so the initials show if the file is missing
 // (logos/ is git-ignored: the logos are the resorts' trademarks, so they aren't in the open repo)
-const INITIALS = { alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO' };
-const resortBadge = r => `<span class="rbadge ${r.canyon === 'Little Cottonwood' ? 'lcc' : 'bcc'}" aria-hidden="true">${INITIALS[r.id] || r.name.slice(0, 2).toUpperCase()}${r.logo ? `<img src="${r.logo}" alt="" onerror="this.remove()">` : ''}</span>`;
+const INITIALS = { alta: 'AL', snowbird: 'SB', brighton: 'BR', solitude: 'SO', palisades: 'PT' };
+const AREA = { 'Little Cottonwood': 'lcc', 'Big Cottonwood': 'bcc' };
+const resortBadge = r => `<span class="rbadge ${AREA[r.canyon] || 'other'}" aria-hidden="true">${INITIALS[r.id] || r.name.slice(0, 2).toUpperCase()}${r.logo ? `<img src="${r.logo}" alt="" onerror="this.remove()">` : ''}</span>`;
 
 const snowLegend = () => `<div class="sb-legend"><span><i class="t-snow"></i>Snow</span><span><i class="t-mix"></i>Mix</span><span><i class="t-rain"></i>Rain</span><span><i class="t-pow"></i>${POWDER_IN}"+ day</span><span class="sb-unit">Inches</span></div>`;
 
