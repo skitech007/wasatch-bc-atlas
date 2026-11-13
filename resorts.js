@@ -22,7 +22,7 @@ function cardBody(r) {
   if (!x) return '<div class="rc-wait" aria-busy="true"><div class="skeleton sk-line" style="width:60%"></div><div class="skeleton" style="height:92px"></div></div>';
   if (x.error) return `<div class="banner warn rc-wait">${ICON.alert}<div><b>Forecast unavailable</b>${esc(x.error)}</div></div>`;
   const { raw, b } = x;
-  return snowStrip(b.days, { last: snotelDaily(raw.data.snotel).at(-1) ?? null, station: r.snotel.name, numbers: false });
+  return snowStrip(b.days, { last: snotelDaily(raw.data.snotel).at(-1) ?? null, station: r.snotel.name });
 }
 
 function render() {

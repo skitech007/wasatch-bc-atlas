@@ -2,7 +2,8 @@
 // forecast and what actually happened so /scorecard can show how accurate it has been.
 //
 // KV keys (binding SCORE):
-//   snap:<date>  forecast made that morning: per-day water/snow (corrected blend and raw models),
+//   snap:<date>  forecast made that morning: per-day water/snow (as the page shows it: corrected blend,
+//                ensemble average from day 5 since 2026-11-13, `ensemble` false if it fell back; raw models),
 //                Atwater high/low (corrected and raw), and hourly raw wind for the next 8 days
 //   obs:<date>   Atwater SNOTEL: water, depth gain, and high/low from the hourly readings (the same
 //                on-the-hour sampling as the forecast; SNOTEL's own daily TMAX runs ~1°F higher)
@@ -15,7 +16,7 @@ import '../snow.js';
 import '../forecast-data.js';
 import calib from '../data/alta_calibration.json';
 
-const { MODELS, POINT, ATWATER, TZ, HOURLY_VARS, omQuery, getJSON, getForecast, build, rollingTempBias, localKey, dateOf, addDays } = globalThis;
+const { MODELS, ENSEMBLES, POINT, ATWATER, TZ, HOURLY_VARS, omQuery, getJSON, getForecast, build, rollingTempBias, localKey, dateOf, addDays } = globalThis;
 const LEADS = [1, 2, 3, 4, 5, 6, 7];
 const WIND_STATION = 'HDP';     // Hidden Peak, 11,000 ft, the nearest ridgetop wind in the NWS feed
 const WIND_MIN_DAYS = 14;       // matched days before the wind correction switches on
@@ -61,11 +62,14 @@ async function nightly(env) {
 async function snapshot(env, today) {
   const corrections = (await env.SCORE.get('corrections', 'json')) || {};
   const models = MODELS.map(m => m.id).join(',');
-  const [det, detAtw] = await Promise.all([
+  // The ensembles too, so days 5–7 are scored as the page shows them (their average, not the blend);
+  // if they don't answer the day still gets saved, from the blend, and says so
+  const [det, detAtw, ens] = await Promise.all([
     getForecast(omQuery({ hourly: HOURLY_VARS.join(','), models, forecast_days: 9 })),
     getForecast(omQuery({ hourly: 'temperature_2m', models, forecast_days: 9 }, ATWATER)),
+    getJSON('https://ensemble-api.open-meteo.com/v1/ensemble?' + omQuery({ hourly: 'precipitation,temperature_2m', models: ENSEMBLES.map(e => e.id).join(','), forecast_days: 9 })).catch(() => null),
   ]);
-  const b = build({ data: { calib, det, corrections } });
+  const b = build({ data: { calib, det, ens, corrections } });
   const atw = build({ data: { calib, det: detAtw } });
 
   const byDate = (hours, f) => {
@@ -96,7 +100,7 @@ async function snapshot(env, today) {
   }
   const windHours = b.allHours.filter(h => h.wsRaw != null && dateOf(h.t) > today && dateOf(h.t) <= addDays(today, 8));
   const snap = {
-    made: today, at: new Date().toISOString(), days,
+    made: today, at: new Date().toISOString(), days, ensemble: !!ens,
     wind: { t0: windHours[0]?.t, ws: windHours.map(h => round(h.wsRaw, 1)), wg: windHours.map(h => round(h.wgRaw, 1)) },
   };
   await env.SCORE.put(`snap:${today}`, JSON.stringify(snap));

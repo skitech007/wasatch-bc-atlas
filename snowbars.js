@@ -32,9 +32,9 @@ function rangeText(ens, blend) {
 // The bars under snowStrip()'s block headers, one column a day with a big one-letter day label
 // (weekends in bold). max: inches at full height. marks: indexes that start a new 5-day block
 // (dashed line before them). tipAttr: the attribute that carries each day's hover text.
-// numbers: false leaves the bars unlabelled (the resorts list). Labels drop the inch mark (the
-// legend says inches), so two-digit neighbours never run together.
-function snowBars(days, { max, marks = [5, 10], todayFirst = true, tipAttr = 'title', numbers = true } = {}) {
+// Each bar is labelled with its inches, without the inch mark (the legend says inches), so two-digit
+// neighbours never run together.
+function snowBars(days, { max, marks = [5, 10], todayFirst = true, tipAttr = 'title' } = {}) {
   const top = max ?? Math.max(4, ...days.map(d => d.snow || 0));
   return `<div class="sb" style="--n:${days.length}">${days.map((d, i) => {
     const v = d.snow || 0, cls = snowClass(d), type = precipType(d);
@@ -42,7 +42,7 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, tipAttr = 'ti
     const tip = `${dow(d.date)} ${dom(d.date)}: ${v.toFixed(1)}" ${type === 'none' ? '' : PTYPE_NAME[type].toLowerCase()}`
       + (lr && lr[1] >= 0.5 ? ` · likely ${rangeText(d.ens, d.snow)}` : '')
       + (d.ens ? ` · ${Math.round(d.ens.pPowder)}% chance of ${POWDER_IN}"+` : '');
-    const label = !numbers ? '' : type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v).replace('"', '');
+    const label = type === 'rain' && v < 0.5 ? '<small>rain</small>' : snowLabel(v).replace('"', '');
     return `<div class="sb-col${todayFirst && i === 0 ? ' today' : ''}${marks.includes(i) ? ' wk' : ''}" data-i="${i}" ${tipAttr}="${tip.replace(/"/g, '&quot;')}">
       <div class="sb-area"><i class="t-${cls}" style="height:${type === 'none' ? 0 : Math.max(4, Math.min(100, 100 * v / top))}%">${label === '' ? '' : `<span class="sb-v">${label}</span>`}</i></div>
       <span class="sb-d${/Sat|Sun/.test(dow(d.date)) ? ' we' : ''}">${dow(d.date)[0]}<b>${dom(d.date)}</b></span>
@@ -54,15 +54,15 @@ function snowBars(days, { max, marks = [5, 10], todayFirst = true, tipAttr = 'ti
 // about a week at a time: the snow measured in the last 24 h, then each 5-day block with its total
 // over its bars. last: snotelDaily()'s latest day (leave it out to drop that box); station: its
 // SNOTEL's name. Call fitStrips() after putting one on the page.
-function snowStrip(days, { last, station, numbers = true, tipAttr = 'title' } = {}) {
+function snowStrip(days, { last, station, tipAttr = 'title' } = {}) {
   const max = Math.max(4, ...days.map(d => d.snow || 0));
   const heads = [[0, 5, 'Next 1–5 days'], [5, 10, 'Days 6–10'], [10, 15, 'Days 11–15']].filter(([a]) => a < days.length).map(([a, z, label]) => {
     const ds = days.slice(a, z), tot = ds.reduce((s, d) => s + (d.snow || 0), 0);
     const short = ds.some(d => d.snow == null) ? '<sup title="Some models end before these days">*</sup>' : '';
-    return `<div class="st-g${a ? ' wk' : ''}" style="grid-column:${a + 1} / span ${ds.length}"><span>${label}</span><b class="${tot >= 12 ? 'pow' : ''}">${Math.round(tot)}"${short}</b></div>`;
+    return `<div class="st-g${a ? ' wk' : ''}" style="grid-column:${a + 1} / span ${ds.length}"><span>${label}</span><b class="${Math.round(tot) >= 12 ? 'pow' : ''}">${Math.round(tot)}"${short}</b></div>`;
   }).join('');
   const now = last === undefined ? '' : `<div class="st-now"><span>Last 24 h</span><b class="${last?.gain ? '' : 'dim'}">${last ? last.gain + '"' : '–'}</b><small>${station ? `${station} SNOTEL` : 'SNOTEL'}</small></div>`;
-  return `<div class="strip"><div class="st-scroll"><div class="st-track">${now}<div class="st-days" style="--n:${days.length}"><div class="st-heads">${heads}</div>${snowBars(days, { max, numbers, tipAttr })}</div></div></div></div>`;
+  return `<div class="strip"><div class="st-scroll"><div class="st-track">${now}<div class="st-days" style="--n:${days.length}"><div class="st-heads">${heads}</div>${snowBars(days, { max, tipAttr })}</div></div></div></div>`;
 }
 // Fade a strip's right edge while there are more days off screen to swipe to
 const fitStrip = s => s.classList.toggle('at-end', s.scrollLeft + s.clientWidth >= s.scrollWidth - 4);

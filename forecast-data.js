@@ -9,6 +9,8 @@ const ATWATER = { lat: 40.5912, lon: -111.6378, elevM: 2667, ft: 8750 };
 const TZ = 'America/Denver';
 const DAYS = 15;
 const POWDER_IN = 6;
+// From this day on, snow and water are the average of all ensemble runs (see build())
+const ENSEMBLE_FROM_DAY = 5;
 
 const MODELS = [
   { id: 'ncep_nbm_conus', name: 'NBM', long: 'NOAA National Blend of Models', color: 'var(--s1)' },
@@ -275,15 +277,17 @@ function build({ data }) {
     const frac = SNOW.blend(pick(x => x.res?.frac), weights);
 
     const ei = ensIndex[t];
-    // Past day 7 the corrections aren't calibrated and single runs are mostly noise,
-    // so snow and water come from the average of all ensemble runs instead
-    // (hours where no run reports anything count as dry, never as a single-run fallback)
-    if (i - nowIdx >= 7 * 24 && members.length) {
+    // From day 5 a single run is too noisy to lean on: its correction factor grows (GFS ×1.9–5,
+    // ECMWF ×2.9 at Alta), so one run's extreme storm became 30"+ days the ensembles didn't back.
+    // Snow and water come from the average of all ensemble runs instead, each corrected the same
+    // way as the "likely range" below (hours where no run reports anything count as dry, never as
+    // a single-run fallback)
+    if (i - nowIdx >= (ENSEMBLE_FROM_DAY - 1) * 24 && members.length) {
       let s = 0, w = 0;
       for (const mb of members) {
         if (ei == null || mb.p[ei] == null || mb.t[ei] == null) continue;
-        const ml = Math.min(7, mb.ens.maxLead);
-        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, roll, mb.ens.parent, 7, t, mb.p[ei] >= 0.01) },
+        const ml = Math.min(lead, mb.ens.maxLead);
+        const r = SNOW.hour({ water: mb.p[ei], tempF: mb.t[ei] + tempBiasAt(calib, roll, mb.ens.parent, ml, t, mb.p[ei] >= 0.01) },
           factorAt(calib, mb.ens.parent, ml) * directionAt(calib, mb.ens.parent, sector));
         s += r.snow; w += r.water;
       }
@@ -426,6 +430,6 @@ function build({ data }) {
 
 // When imported as a module (the worker), these become globals as they already are in the browser
 Object.assign(globalThis, {
-  POINT, ATWATER, loadResorts, resortById, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
+  POINT, ATWATER, loadResorts, resortById, TZ, DAYS, POWDER_IN, ENSEMBLE_FROM_DAY, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
   localKey, dateOf, hourOf, addDays, dow, dom, skiDay, getJSON, omQuery, getForecast, fetchAll, build,
 });
