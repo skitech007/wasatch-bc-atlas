@@ -219,8 +219,10 @@ button.active { background: #ffcf4a; color: #1d1600; border-color: #ffcf4a; }
 .st-g b { font-size: var(--fs-xl); font-weight: 780; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .st-g b.pow { color: var(--c-pow); }
 .st-g sup { font-size: 10px; color: var(--muted); }
-/* the bars under the block headers, one column a day */
-.sb { flex: 1; display: grid; grid-template-columns: repeat(var(--n), 1fr); height: var(--sb-h, 170px); }
+/* the bars under the block headers, one column a day. flex: none keeps the set height: with flex: 1
+   (a 0% basis in a column of no set height) current Chrome sizes the chart to its labels and every
+   bar's percentage height collapses to the 2px minimum */
+.sb { flex: none; display: grid; grid-template-columns: repeat(var(--n), 1fr); height: var(--sb-h, 170px); }
 .sb-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .sb-col.wk { border-left: 1px dashed var(--line); }
 /* each number sits 3 px above its own bar; the area keeps 18 px of headroom so the tallest bar's number fits */
