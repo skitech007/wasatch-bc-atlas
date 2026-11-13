@@ -137,9 +137,9 @@ const resortById = async id => { const rs = await loadResorts(); return rs.find(
 // ---------- fetching ----------
 const CACHE_MIN = 20;
 
-async function getJSON(url) {
+async function getJSON(url, ms = 12000) {
   // Time out so one slow source (USDA's SNOTEL server sometimes hangs) can't hold up the page
-  const r = await fetch(url, { headers: { Accept: 'application/geo+json, application/json' }, signal: AbortSignal.timeout(12000) });
+  const r = await fetch(url, { headers: { Accept: 'application/geo+json, application/json' }, signal: AbortSignal.timeout(ms) });
   if (!r.ok) throw new Error(`${r.status} from ${new URL(url).host}`);
   return r.json();
 }
@@ -150,6 +150,14 @@ function omQuery(extra, point = POINT) {
     temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch', ...extra,
   });
   return q.toString();
+}
+
+// Model forecasts from Open-Meteo. When its forecast server doesn't answer (it hung for hours on
+// 2026-11-13), ask its Previous Runs server, whose plain variables are the same latest run; it
+// lacks only some models' freezing level, which the blend then takes from the models that have it.
+async function getForecast(query) {
+  try { return await getJSON('https://api.open-meteo.com/v1/forecast?' + query, 6000); }
+  catch { return getJSON('https://previous-runs-api.open-meteo.com/v1/forecast?' + query); }
 }
 
 async function fetchAll(force, resortId = 'alta') {
@@ -168,7 +176,7 @@ async function fetchAll(force, resortId = 'alta') {
     // Temperature and wind corrections re-learned nightly by the scorecard worker, for Alta only
     // (absent when running locally)
     ...(r.id === 'alta' ? { corrections: getJSON('api/corrections') } : {}),
-    det: getJSON('https://api.open-meteo.com/v1/forecast?' + omQuery({ hourly: HOURLY_VARS.join(','), models: MODELS.map(m => m.id).join(',') }, pt)),
+    det: getForecast(omQuery({ hourly: HOURLY_VARS.join(','), models: MODELS.map(m => m.id).join(',') }, pt)),
     ens: getJSON('https://ensemble-api.open-meteo.com/v1/ensemble?' + omQuery({ hourly: 'precipitation,temperature_2m', models: ENSEMBLES.map(e => e.id).join(',') }, pt)),
     nws: getJSON(`https://api.weather.gov/gridpoints/${r.nws}`),
     alerts: getJSON(`https://api.weather.gov/alerts/active?point=${pt.lat},${pt.lon}`),
@@ -413,5 +421,5 @@ function build({ data }) {
 // When imported as a module (the worker), these become globals as they already are in the browser
 Object.assign(globalThis, {
   POINT, ATWATER, loadResorts, resortById, TZ, DAYS, POWDER_IN, MODELS, ENSEMBLES, HOURLY_VARS, leadOf, tempBiasAt, rollingTempBias, mstOf, flowSector,
-  localKey, dateOf, hourOf, addDays, dow, dom, skiDay, getJSON, omQuery, fetchAll, build,
+  localKey, dateOf, hourOf, addDays, dow, dom, skiDay, getJSON, omQuery, getForecast, fetchAll, build,
 });

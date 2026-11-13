@@ -15,7 +15,7 @@ import '../snow.js';
 import '../forecast-data.js';
 import calib from '../data/alta_calibration.json';
 
-const { MODELS, POINT, ATWATER, TZ, HOURLY_VARS, omQuery, getJSON, build, rollingTempBias, localKey, dateOf, addDays } = globalThis;
+const { MODELS, POINT, ATWATER, TZ, HOURLY_VARS, omQuery, getJSON, getForecast, build, rollingTempBias, localKey, dateOf, addDays } = globalThis;
 const LEADS = [1, 2, 3, 4, 5, 6, 7];
 const WIND_STATION = 'HDP';     // Hidden Peak, 11,000 ft, the nearest ridgetop wind in the NWS feed
 const WIND_MIN_DAYS = 14;       // matched days before the wind correction switches on
@@ -62,8 +62,8 @@ async function snapshot(env, today) {
   const corrections = (await env.SCORE.get('corrections', 'json')) || {};
   const models = MODELS.map(m => m.id).join(',');
   const [det, detAtw] = await Promise.all([
-    getJSON('https://api.open-meteo.com/v1/forecast?' + omQuery({ hourly: HOURLY_VARS.join(','), models, forecast_days: 9 })),
-    getJSON('https://api.open-meteo.com/v1/forecast?' + omQuery({ hourly: 'temperature_2m', models, forecast_days: 9 }, ATWATER)),
+    getForecast(omQuery({ hourly: HOURLY_VARS.join(','), models, forecast_days: 9 })),
+    getForecast(omQuery({ hourly: 'temperature_2m', models, forecast_days: 9 }, ATWATER)),
   ]);
   const b = build({ data: { calib, det, corrections } });
   const atw = build({ data: { calib, det: detAtw } });
