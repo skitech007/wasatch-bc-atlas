@@ -272,7 +272,7 @@ map.once('style.load', async () => {
   map.addLayer({ id: 'tours-pin', type: 'symbol', source: 'tour-ends', layout: { 'icon-image': 'tour-pin', 'icon-anchor': 'bottom', 'icon-size': W(0.75, 1), 'icon-allow-overlap': true, 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': W(12, 15), 'text-anchor': 'top', 'text-offset': [0, 0.3], 'text-max-width': 8, 'text-optional': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#06121c', 'text-halo-width': 2.2, 'text-halo-blur': 0.3 } });
 
   map.addSource('tour-marks', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  map.addLayer({ id: 'tour-marks-dot', type: 'circle', source: 'tour-marks', paint: { 'circle-radius': ['match', ['get', 'kind'], 'death', 4, 5], 'circle-color': ['match', ['get', 'kind'], 'death', '#2b0a12', '#ffffff'], 'circle-stroke-color': ['match', ['get', 'kind'], 'death', '#ff6b8a', '#7c3aed'], 'circle-stroke-width': 2 } });
+  map.addLayer({ id: 'tour-marks-dot', type: 'circle', source: 'tour-marks', paint: { 'circle-radius': ['match', ['get', 'kind'], 'death', 4, 5], 'circle-color': ['match', ['get', 'kind'], 'death', '#2b0a12', 'place', '#ffcf4a', '#ffffff'], 'circle-stroke-color': ['match', ['get', 'kind'], 'death', '#ff6b8a', 'place', '#0b0f14', '#7c3aed'], 'circle-stroke-width': 2 } });
   map.addLayer({ id: 'tour-marks-label', type: 'symbol', source: 'tour-marks', layout: { 'text-field': ['case', ['==', ['get', 'kind'], 'death'], ['concat', '† ', ['get', 'name']], ['get', 'name']], 'text-font': ['Open Sans Semibold'], 'text-size': ['match', ['get', 'kind'], 'death', 10, 12], 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true }, paint: { 'text-color': ['match', ['get', 'kind'], 'death', '#ffb3c2', '#ffffff'], 'text-halo-color': '#1a0a2a', 'text-halo-width': 1.5 } });
 
   map.addSource('route', { type: 'geojson', data: routeGeoJSON() });
@@ -982,11 +982,15 @@ function selectTour(id) {
   openTab('plan');
 }
 
-/* the selected tour's runs and nearby avalanche-death locations, on the map */
+/* the selected tour's start and turn-offs, nearby landmarks, runs and avalanche-death locations, on the map
+   (the objective already has the tour's pin) */
 function showTourMarks(p) {
   const src = map.getSource('tour-marks');
   if (!src) return;
+  const place = (name, q) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [q.lon, q.lat] }, properties: { kind: 'place', name } });
   const feats = p ? [
+    ...Object.entries(p.points || {}).filter(([name]) => name !== p.to).map(([name, q]) => place(name, q)),
+    ...(p.landmarks || []).map(q => place(q.name, q)),
     ...(p.runs || []).map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { kind: 'run', name: r.name } })),
     ...(p.deaths_near || []).map(d => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [d.lon, d.lat] }, properties: { kind: 'death', name: d.name } })),
   ] : [];
@@ -1087,19 +1091,29 @@ async function renderGuide() {
     <details><summary>Sources <span class="muted">(${used.length})</span></summary><ul class="guide-list">${used.map(k => {
       const s = state.tours.sources[k] || (k === 'uac-route' ? { title: `UAC route rating: ${p.uac}`, url: uac?.routes.find(r => r.name === p.uac)?.url } : { title: k });
       return `<li>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>` : esc(s.title)}</li>`;
-    }).join('')}<li>Points: ${esc(Object.entries(p.points).map(([n, q]) => `${n}: ${q.source}`).join('; '))}</li></ul></details>`;
+    }).join('')}<li>Points: ${esc([...Object.entries(p.points), ...(p.landmarks || []).map(q => [q.name, q])].map(([n, q]) => `${n}: ${q.source}`).join('; '))}</li></ul></details>`;
   el.querySelector('#save-offline').onclick = e => saveOffline(e.currentTarget, p, f);
   el.querySelectorAll('.run-go').forEach(b => {
     b.onclick = () => { const r = p.runs[+b.dataset.i]; map.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 900 }); };
   });
-  if (p.status === 'alta-uphill') {
+  if (p.status === 'alta-uphill' || p.status === 'alta-summer-road') {
+    // Summer Road tours (Catherine Pass, Grizzly Gulch) go by Alta's Summer Road line, which can be
+    // open while the rest of the ski area is closed to uphill travel
+    const road = p.status === 'alta-summer-road';
     const box = document.getElementById('guide-status');
     box.innerHTML = '<div class="check info"><b>Alta uphill:</b> checking…</div>';
     try {
       const u = await fetch('/api/uphill').then(r => r.json());
       if (state.tourId !== p.id) return;
-      const cls = u.status === 'open' ? 'ok' : u.status === 'closed' ? 'bad' : 'info';
-      box.innerHTML = `<div class="check ${cls}"><b>Alta uphill:</b> ${u.text ? esc(u.text) : 'status not found on the page'}${u.updated ? ` <span class="muted">(Alta, updated ${esc(u.updated)})</span>` : ''}${u.summerRoad ? ` ${esc(u.summerRoad)}` : ''} <a href="${esc(u.url)}" target="_blank" rel="noopener">alta.com ↗</a></div>`;
+      const when = u.updated ? ` <span class="muted">(Alta, updated ${esc(u.updated)})</span>` : '';
+      const link = ` <a href="${esc(u.url)}" target="_blank" rel="noopener">alta.com ↗</a>`;
+      if (road) {
+        const cls = !u.summerRoad ? 'info' : /is (?:currently )?open/i.test(u.summerRoad) ? 'ok' : 'bad';
+        box.innerHTML = `<div class="check ${cls}"><b>Alta's Summer Road:</b> ${u.summerRoad ? esc(u.summerRoad) : 'no Summer Road line found on the page'}${when}${u.text ? ` <span class="muted">Rest of the ski area: ${esc(u.text)}</span>` : ''}${link}</div>`;
+      } else {
+        const cls = u.status === 'open' ? 'ok' : u.status === 'closed' ? 'bad' : 'info';
+        box.innerHTML = `<div class="check ${cls}"><b>Alta uphill:</b> ${u.text ? esc(u.text) : 'status not found on the page'}${when}${u.summerRoad ? ` ${esc(u.summerRoad)}` : ''}${link}</div>`;
+      }
     } catch {
       box.innerHTML = '<div class="check info"><b>Alta uphill:</b> couldn\'t check. Alta can close uphill travel before opening day; <a href="https://www.alta.com/uphill-travel" target="_blank" rel="noopener">check alta.com ↗</a></div>';
     }

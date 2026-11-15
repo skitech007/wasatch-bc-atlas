@@ -16,7 +16,8 @@
      ATES class:   0 non-avalanche · 1 simple · 2 challenging · 3 complex · 4 extreme
 2. Tours: rough lines from tools/tours.json, the lowest-cost way across the terrain where cost grows
    with slope, ATES class and mapped avalanche paths. That's the "longer but safer" preference Cody
-   Townsend describes, written down as numbers. A tour can instead give an OpenStreetMap way.
+   Townsend describes, written down as numbers. A tour can instead give an OpenStreetMap way, or
+   several chained end to end (osm_way as a list).
    Also per tour: map slope and aspect at each named run, and the avalanche-death locations
    (WBSkiing list, data/avalanche_deaths_wbs.json) near the line or its runs.
    Output: data/tours.geojson
@@ -383,6 +384,11 @@ def build_tours(dem, slope, aspect, ates, mapped, x0, y0, cs):
         return {'elev_ft': ft(dem[r0, c0]), 'slope_med': int(round(float(np.median(sl)))), 'slope_max': int(round(float(sl.max()))),
                 'aspect': COMPASS[int((mean + 11.25) // 22.5) % 16]}
 
+    def osm_source(w):
+        # one way, or several chained end to end (a road, then a trail)
+        ws = w if isinstance(w, list) else [w]
+        return f"OpenStreetMap way{'s' if len(ws) > 1 else ''} {', '.join(map(str, ws))}"
+
     mcp_cache = {}
     feats = []
     for t in cfg['tours']:
@@ -431,7 +437,9 @@ def build_tours(dem, slope, aspect, ates, mapped, x0, y0, cs):
         props = {k: v for k, v in t.items() if k not in ('line',)}
         props.update({
             'points': {k: pts[k] for k in stops},
-            'line_source': (f"OpenStreetMap way {t['line']['osm_way']}" if t.get('line', {}).get('coords') else 'computed'),
+            # named places near the line worth seeing on the map (a second pass beside the objective, say)
+            'landmarks': [{'name': k, **pts[k]} for k in t.get('landmarks', [])],
+            'line_source': osm_source(t['line']['osm_way']) if t.get('line', {}).get('coords') else 'computed',
             'runs': runs, 'deaths_near': near,
             'approx': {
                 'distance_mi': round(dist / 1609.344, 2), 'gain_ft': ft(gain), 'high_ft': ft(max(el)),
