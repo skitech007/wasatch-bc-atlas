@@ -20,23 +20,26 @@
   <main class="page-main">
     <p class="lede">How the Alta forecast has done against what the Atwater SNOTEL measured.</p>
 
-    <p class="card recon-note" id="recon-note" hidden><b>↺ Reconstructed days.</b> Forecasts before the nightly job started<span id="live-since"></span> were rebuilt afterwards: the same forecast code, run as of each past morning on what each model actually forecast then (Open-Meteo's archive of past model runs). Three differences from a live forecast: the storm direction comes from what the 700 mb wind actually did rather than what was forecast, which flatters the reconstruction slightly; the snow ratio uses only the 9,895 ft temperature; and there's no wind. Anything marked ↺ is reconstructed; everything else was saved live that morning.</p>
+    <div class="card recon-note" id="recon-note" hidden><p class="title-info"><b>↺ Some days are reconstructed</b> <button type="button" class="info-btn" aria-label="What reconstructed means" aria-expanded="false" aria-controls="recon-info">?</button></p><div class="info-body" id="recon-info" hidden><p>Forecasts before the nightly job started<span id="live-since"></span> were rebuilt afterwards: the same forecast code, run as of each past morning on what each model actually forecast then (Open-Meteo's archive of past model runs). Three differences from a live forecast: the storm direction comes from what the 700 mb wind actually did rather than what was forecast, which flatters the reconstruction slightly; the snow ratio uses only the 9,895 ft temperature; and there's no wind. Anything marked ↺ is reconstructed; everything else was saved live that morning.</p></div></div>
     <section class="card">
-      <h2>Water: average miss by how far ahead <span class="muted">· inches of melted snow per day, vs the Atwater gauge</span></h2>
+      <h2>Water: average miss by how far ahead <span class="muted">· inches of melted snow per day, vs the Atwater gauge</span> <button type="button" class="info-btn" aria-label="How this is scored" aria-expanded="false" aria-controls="water-info">?</button></h2>
+      <div class="info-body" id="water-info" hidden><p>Each morning the worker saves the forecast for the next 7 days. Once a day has happened, each saved forecast for it is compared with what the Atwater SNOTEL (8,750 ft, in Alta) measured. "Alta blend" is this site's corrected forecast; the model columns are each model as other apps show it, uncorrected. Lower is better; the best in each row is highlighted.</p></div>
       <div id="water" class="scroll-x"></div>
-      <p class="hint">Each morning the worker saves the forecast for the next 7 days. Once a day has happened, each saved forecast for it is compared with what the Atwater SNOTEL (8,750 ft, in Alta) measured. "Alta blend" is this site's corrected forecast; the model columns are each model as other apps show it, uncorrected. Lower is better; the best in each row is highlighted.</p>
+      
     </section>
 
     <section class="card">
-      <h2>Temperature: average miss <span class="muted">· °F at Atwater</span></h2>
+      <h2>Temperature: average miss <span class="muted">· °F at Atwater</span> <button type="button" class="info-btn" aria-label="How this is scored" aria-expanded="false" aria-controls="temp-info">?</button></h2>
+      <div class="info-body" id="temp-info" hidden><p>Daily high and low, corrected blend vs the same blend without the temperature correction. "Measured" is the warmest and coldest of Atwater's on-the-hour readings, the same sampling as the hourly forecast; SNOTEL's own daily high, which catches brief peaks between hours, runs about 1°F warmer.</p></div>
       <div id="temp" class="scroll-x"></div>
-      <p class="hint">Daily high and low, corrected blend vs the same blend without the temperature correction. "Measured" is the warmest and coldest of Atwater's on-the-hour readings, the same sampling as the hourly forecast; SNOTEL's own daily high, which catches brief peaks between hours, runs about 1°F warmer.</p>
+      
     </section>
 
     <section class="card">
-      <h2>Scored the PEAKS way <span class="muted">· the tests OpenSnow used for PEAKS 2.0</span></h2>
+      <h2>Scored the PEAKS way <span class="muted">· the tests OpenSnow used for PEAKS 2.0</span> <button type="button" class="info-btn" aria-label="How this is scored" aria-expanded="false" aria-controls="peaks-info">?</button></h2>
+      <div class="info-body" id="peaks-info" hidden><p>OpenSnow's PEAKS 2.0 announcement (Oct 2026) scored models three ways: average miss (the tables above), the share of "significant errors", and how often each model was the best. Significant error here, as theirs: water more than 0.5" off, a miss (0.1"+ fell, under 0.02" forecast) or a false alarm (0.1"+ forecast, under 0.02" fell); temperature more than 3°F off on the high or low.</p></div>
       <div id="peaks" class="scroll-x"></div>
-      <p class="hint">OpenSnow's PEAKS 2.0 announcement (Oct 2026) scored models three ways: average miss (the tables above), the share of "significant errors", and how often each model was the best. Significant error here, as theirs: water more than 0.5" off, a miss (0.1"+ fell, under 0.02" forecast) or a false alarm (0.1"+ forecast, under 0.02" fell); temperature more than 3°F off on the high or low.</p>
+      
     </section>
 
     <section class="card">
@@ -45,7 +48,8 @@
     </section>
 
     <section class="card">
-      <h2>Wind correction</h2>
+      <h2>Wind correction <button type="button" class="info-btn" aria-label="How this is learned" aria-expanded="false" aria-controls="wind-info">?</button></h2>
+      <div class="info-body" id="wind-info" hidden><p>No SNOTEL near Alta measures wind, and the NWS only keeps about a week of station history, so the worker saves Hidden Peak's readings every night and compares them with the wind it forecast 1–7 days earlier. Hidden Peak is an exposed ridgetop, so the corrected wind reads as upper-mountain wind.</p></div>
       <div id="wind"></div>
     </section>
   </main>

@@ -37,19 +37,21 @@
 
     <!-- ================= Tours ================= -->
     <section id="tab-tours" class="tab" role="tabpanel" aria-labelledby="t-tours">
-      <h3>Tours <span class="muted" id="tour-count"></span></h3>
-      <p class="hint">Lines are <b>computed rough tracks</b>, not surveyed routes. They follow the lowest-angle way up the terrain between the trailhead and the objective, the way Cody Townsend sketches a route to gauge his day. Tap a tour for its guide: start, skin track, runs, slide history and sources.</p>
+      <h3>Tours <span class="muted" id="tour-count"></span> <button type="button" class="info-btn" aria-label="About these lines" aria-expanded="false" aria-controls="tours-info">?</button></h3>
+      <div class="info-body" id="tours-info" hidden><p>Lines are <b>computed rough tracks</b>, not surveyed routes. They follow the lowest-angle way up the terrain between the trailhead and the objective, the way Cody Townsend sketches a route to gauge his day. Tap a tour for its guide: start, skin track, runs, slide history and sources.</p></div>
       <ul id="tour-list" class="tour-list"><li class="muted">Loading tours…</li></ul>
 
       <details>
         <summary>From your photos</summary>
-        <p class="hint">Every route name in the onX screenshots, the Reddit comment and the White Cloud list, and the tour it's in.</p>
+        <p class="title-info"><button type="button" class="info-btn" aria-label="About this list" aria-expanded="false" aria-controls="photos-info">?</button></p>
+        <div class="info-body" id="photos-info" hidden><p>Every route name in the onX screenshots, the Reddit comment and the White Cloud list, and the tour it's in.</p></div>
         <div id="photo-index" class="photo-index"></div>
       </details>
 
       <details>
         <summary>UAC rated routes <span class="muted" id="uac-count"></span></summary>
-        <p class="hint">Ratings and stats are copied as published on each UAC route page.</p>
+        <p class="title-info"><button type="button" class="info-btn" aria-label="About these ratings" aria-expanded="false" aria-controls="uac-info">?</button></p>
+        <div class="info-body" id="uac-info" hidden><p>Ratings and stats are copied as published on each UAC route page.</p></div>
         <div class="seg small" id="rating-filter">
           <label><input type="checkbox" value="Green" checked> Green</label>
           <label><input type="checkbox" value="Yellow" checked> Yellow</label>
@@ -133,7 +135,8 @@
         </select>
         <input type="datetime-local" id="light-time" hidden aria-label="Sun time">
       </div>
-      <p class="hint" id="light-note">Maps light terrain from the northwest so ridges read correctly. In the northern hemisphere the real sun comes from the south, so pick <b>Real sun</b> to see which slopes are actually being warmed.</p>
+      <p class="title-info"><button type="button" class="info-btn" aria-label="About the light" aria-expanded="false" aria-controls="light-info">?</button></p>
+      <div class="info-body" id="light-info" hidden><p id="light-note">Maps light terrain from the northwest so ridges read correctly. In the northern hemisphere the real sun comes from the south, so pick <b>Real sun</b> to see which slopes are actually being warmed.</p></div>
 
       <h3>Layers</h3>
       <div class="row"><label><input type="checkbox" id="avypaths" checked> Mapped avalanche paths <span class="muted">(1989 survey)</span></label></div>
@@ -143,7 +146,8 @@
       <div class="ates-key" id="runout-key" hidden><span><i style="background:#c43250"></i>Start zone</span><span><i style="background:#f08a24"></i>Typical reach</span><span><i style="background:#ffd682"></i>Big-event reach</span></div>
       <div class="row"><label><input type="checkbox" id="zones" checked> UAC forecast zones</label></div>
 
-      <h3>Terrain shading</h3>
+      <h3>Terrain shading <button type="button" class="info-btn" aria-label="How accurate the slope is" aria-expanded="false" aria-controls="shading-info">?</button></h3>
+      <div class="info-body" id="shading-info" hidden><p>Slope comes from a ~10 m elevation model. It smooths out rolls and steps, so a mapped 28° slope can hold a 31° pitch. Check with an inclinometer.</p></div>
       <div class="seg" role="radiogroup" aria-label="Terrain analysis mode">
         <label><input type="radio" name="mode" value="none"> Off</label>
         <label><input type="radio" name="mode" value="slope" checked> Slope</label>
@@ -157,10 +161,9 @@
       </div>
       <div id="legend" class="legend"></div>
       <p class="hint" id="zoom-hint">Zoom in to see shading.</p>
-      <p class="hint warn-hint">Slope comes from a ~10 m elevation model. It smooths out rolls and steps, so a mapped 28° slope can hold a 31° pitch. Check with an inclinometer.</p>
 
-      <h3>Avalanche rose</h3>
-      <p class="hint">Copy today's danger rose from the <a href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">UAC Salt Lake forecast</a>, then pick <b>Rose match</b> to shade only steep slopes in the aspects and bands you tapped.</p>
+      <h3>Avalanche rose <button type="button" class="info-btn" aria-label="How to use the rose" aria-expanded="false" aria-controls="rose-info">?</button></h3>
+      <div class="info-body" id="rose-info" hidden><p>Copy today's danger rose from the <a href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">UAC Salt Lake forecast</a>, then pick <b>Rose match</b> to shade only steep slopes in the aspects and bands you tapped.</p></div>
       <div class="rose-wrap">
         <svg id="rose" viewBox="-110 -110 220 220" role="group" aria-label="Avalanche rose"></svg>
         <div class="rose-side">

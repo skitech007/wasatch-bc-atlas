@@ -42,9 +42,6 @@
 .day-detail b { color: var(--text); font-weight: 700; }
 .day-detail .pow { color: var(--c-pow); font-weight: 650; }
 .day-detail .nw { white-space: nowrap; }
-.about { margin-top: var(--sp-3); padding: 0; }
-.about summary { padding: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 650; color: var(--muted); }
-.about .hint { margin-top: var(--sp-1); }
 
 /* ---------- day & night: a table swiped sideways, one column per 12 hours, row names pinned left ---------- */
 .dn-wrap { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }

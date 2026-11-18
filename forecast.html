@@ -34,11 +34,11 @@
   <main class="page-main">
     <div class="tab-panel" id="t-snow" role="tabpanel">
       <section class="card" id="s-summary">
-        <div class="card-head"><h2>Next 15 days</h2><span id="opening"></span></div>
+        <div class="card-head"><div class="title-info"><h2>Next 15 days</h2><button type="button" class="info-btn" aria-label="How to read this chart" aria-expanded="false" aria-controls="summary-info">?</button></div><span id="opening"></span></div>
+        <div class="info-body" id="summary-info" hidden><p id="summary-hint"></p></div>
         <div id="summary" class="summary"><div class="skeleton sk-block"></div></div>
         <p class="day-detail" id="day-detail" aria-live="polite"></p>
         <div id="legend"></div>
-        <details class="about"><summary>How to read this</summary><p class="hint" id="summary-hint"></p></details>
       </section>
 
       <section class="card" id="s-periods">
@@ -57,14 +57,16 @@
 
     <div class="tab-panel" id="t-cams" role="tabpanel" hidden>
       <section class="card" id="s-cams">
-        <div class="card-head"><h2>Live cams</h2></div>
+        <div class="card-head"><div class="title-info"><h2>Live cams</h2><button type="button" class="info-btn" aria-label="About these cams" aria-expanded="false" aria-controls="cams-info">?</button></div></div>
+        <div class="info-body" id="cams-info" hidden></div>
         <div id="cams"></div>
       </section>
     </div>
 
     <div class="tab-panel" id="t-report" role="tabpanel" hidden>
       <section class="card" id="s-observed">
-        <div class="card-head"><h2>What actually fell</h2><span class="muted" id="obs-where"></span></div>
+        <div class="card-head"><div class="title-info"><h2>What actually fell</h2><button type="button" class="info-btn" aria-label="How this is measured" aria-expanded="false" aria-controls="observed-info">?</button></div><span class="muted" id="obs-where"></span></div>
+        <div class="info-body" id="observed-info" hidden></div>
         <div id="observed"></div>
       </section>
       <section class="card" id="s-afd">
@@ -75,14 +77,10 @@
 
     <div class="tab-panel" id="t-models" role="tabpanel" hidden>
       <section class="card" id="s-models">
-        <div class="card-head"><h2>Models side by side</h2></div>
+        <div class="card-head"><div class="title-info"><h2>Models side by side</h2><button type="button" class="info-btn" aria-label="How these numbers are made" aria-expanded="false" aria-controls="models-info">?</button></div></div>
+        <div class="info-body method" id="models-info" hidden><p id="models-hint"></p><h3>How these numbers are made</h3><div id="method"></div></div>
         <div id="cumulative" class="cumulative"></div>
-        <p class="hint" id="models-hint"></p>
         <div id="models" class="scroll-x"></div>
-      </section>
-      <section class="card method" id="s-method">
-        <div class="card-head"><h2>How these numbers are made</h2></div>
-        <div id="method"></div>
       </section>
     </div>
   </main>

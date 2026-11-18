@@ -2,6 +2,25 @@
 // 1. the theme (dark, or "glare": high-contrast light for sun on snow), remembered per device
 // 2. stroke icons as inline SVG, so nothing depends on emoji or a remote icon font (the app runs offline)
 // 3. a "No signal" bar when the phone goes offline
+// 4. "?" buttons: explanations, sources and method notes stay folded away behind a small circled ?
+//    and open in place on a tap. Markup: infoTip(html) for a ? with its text right after it, or a
+//    .info-btn with aria-controls pointing at a hidden .info-body placed anywhere on the page.
+(function () {
+  let infoN = 0;
+  window.infoTip = (html, label = 'About this') => {
+    const id = `info-${++infoN}`;
+    return `<button type="button" class="info-btn" aria-label="${label}" aria-expanded="false" aria-controls="${id}">?</button><div class="info-body" id="${id}" hidden>${html}</div>`;
+  };
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.info-btn');
+    if (!b) return;
+    e.preventDefault();
+    const body = document.getElementById(b.getAttribute('aria-controls'));
+    if (!body) return;
+    body.hidden = !body.hidden;
+    b.setAttribute('aria-expanded', String(!body.hidden));
+  });
+})();
 (function () {
   const KEY = 'wbca.theme';
   const get = () => { try { return localStorage.getItem(KEY) === 'glare' ? 'glare' : 'dark'; } catch { return 'dark'; } };

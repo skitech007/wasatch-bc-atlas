@@ -3,7 +3,7 @@
 // Map tiles and map fonts go in a second cache, cache-first, so a tour viewed (or
 // saved with "Save for offline") at home still draws with no signal on the skin track. The app's own
 // terrain-class tiles (/tiles/) stay in the shell cache, so a rebuild replaces them.
-const CACHE = 'atlas-shell-v16';
+const CACHE = 'atlas-shell-v17';
 const TILES = 'atlas-tiles-v1';
 const NET_WAIT_MS = 3000;       // how long the app's own files wait for the network before the cache
 let slowUntil = 0;              // after one wait runs out, go straight to the cache for 30 s (the page, scripts

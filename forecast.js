@@ -216,7 +216,8 @@ function renderObserved(data) {
     }).join('')}</div>
     <div class="bars obs">${last.map(x => `<div class="bar" data-tip="${esc(`${dow(x.date)} ${dom(x.date)}: depth ${x.depth ?? '–'}" (${x.change == null ? '–' : (x.change > 0 ? '+' : '') + x.change}") · water ${x.water == null ? '–' : x.water.toFixed(2)}" · ${x.temp ?? '–'}°F`)}">
       <div class="area"><i style="height:${Math.max(2, 100 * x.gain / max)}%">${x.gain ? `<span class="bv">${x.gain}</span>` : ''}</i></div><span class="bd">${dow(x.date)[0]}<br>${dom(x.date)}</span></div>`).join('')}</div>
-    <p class="hint">New snow here is the rise in measured depth at the ${esc(R.snotel.name)} SNOTEL (${ft(R.snotel.ft)} ft, ${R.snotel.km < 1 ? `at ${esc(R.name)}` : `${R.snotel.km} km from ${esc(R.name)}'s forecast point`}), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
+  `;
+  $('observed-info').innerHTML = `<p>New snow here is the rise in measured depth at the ${esc(R.snotel.name)} SNOTEL (${ft(R.snotel.ft)} ft, ${R.snotel.km < 1 ? `at ${esc(R.name)}` : `${R.snotel.km} km from ${esc(R.name)}'s forecast point`}), midnight to midnight. Settling makes this read a little low in big storms.</p>`;
 }
 
 const NWS_OFFICE = { SLC: 'Salt Lake City', REV: 'Reno' };
@@ -261,7 +262,7 @@ function methodHtml() {
     <li><b>Odds and ranges.</b> The same steps run on all 82 runs of the ECMWF (51) and GFS (31) ensembles, each corrected with its parent model's factor (the GFS ensemble keeps one grid throughout, so its factor is held at the day-4 value). "Likely range" takes how spread out the middle half of those runs is and centres it on the blend; chance figures are the share of runs that hit the mark.</li>
     <li><b>Everything else</b> (temperature, feels like, humidity, wind, cloud, freezing level) is the weighted blend of the four models. Snow level comes from the NWS forecast grid (${esc(R.nws)}) and runs out after about 7 days.</li>
   </ol>
-  <p class="hint">Sources: Open-Meteo forecast, ensemble and previous-runs APIs (NOAA, ECMWF, Environment Canada models) · NWS api.weather.gov (snow level, forecast snow, alerts, forecast discussion) · NRCS SNOTEL ${esc(R.snotel.triplet.split(':')[0])} ${esc(R.snotel.name)} · base and peak heights and opening day: ${R.id === 'palisades' ? 'the resort\'s mountain statistics page and ABC7 News' : 'Ski Utah'}. The forecast numbers never come from OpenSnow or the resort; the cams are the resort's own.</p>`;
+  <p>Sources: Open-Meteo forecast, ensemble and previous-runs APIs (NOAA, ECMWF, Environment Canada models) · NWS api.weather.gov (snow level, forecast snow, alerts, forecast discussion) · NRCS SNOTEL ${esc(R.snotel.triplet.split(':')[0])} ${esc(R.snotel.name)} · base and peak heights and opening day: ${R.id === 'palisades' ? 'the resort\'s mountain statistics page and ABC7 News' : 'Ski Utah'}. The forecast numbers never come from OpenSnow or the resort; the cams are the resort's own.</p>`;
 }
 
 function renderMethod(b, data) {
@@ -326,8 +327,9 @@ function renderCams() {
       <span class="cam-play" aria-hidden="true">${ICON.play}</span><span class="cam-name">${esc(v.name)}</span></button>`).join('');
   $('cams').innerHTML = `${yt ? `<div class="cam-grid">${yt}</div>` : ''}
     <a class="cam-link" href="${esc(c.page)}" target="_blank" rel="noopener"><span><b>${yt ? `More on ${esc(R.name)}'s site` : `Open ${esc(R.name)}'s live cams`}</b><small>${esc(c.label)}</small></span>${ICON.external}</a>
-    <p class="hint">${yt ? `${esc(R.name)} streams these on YouTube; they play here in YouTube's own player.`
-      : `${esc(R.name)} publishes its cams as pictures on its own site rather than as a stream other apps can show, so this opens their page.`}</p>`;
+`;
+  $('cams-info').innerHTML = `<p>${yt ? `${esc(R.name)} streams these on YouTube; they play here in YouTube's own player.`
+    : `${esc(R.name)} publishes its cams as pictures on its own site rather than as a stream other apps can show, so this opens their page.`}</p>`;
 }
 document.addEventListener('click', ev => {
   const b = ev.target.closest('.cam[data-yt]');

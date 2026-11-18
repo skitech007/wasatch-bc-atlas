@@ -36,9 +36,10 @@
 
     <section class="card snow" aria-labelledby="snow-h">
       <div class="card-head">
-        <h2 id="snow-h">Alta · next 15 days</h2>
+        <div class="title-info"><h2 id="snow-h">Alta · next 15 days</h2><button type="button" class="info-btn" aria-label="About this chart" aria-expanded="false" aria-controls="snow-info">?</button></div>
         <span class="muted" id="status">Loading…</span>
       </div>
+      <div class="info-body" id="snow-info" hidden><p>Each day runs 6 pm the night before to 6 pm. Last 24&nbsp;h is the rise in snow depth at the Alta SNOTEL. Snow is a blend of the NBM, ECMWF, GFS, GEM and NWS forecasts; tap Full forecast to see each model and how the blend is made.</p></div>
       <div class="chart" id="chart" role="img" aria-label="Daily snow forecast for Alta, next 15 days"><div class="skeleton sk-block"></div></div>
       <div class="chart-foot">
         <div id="legend"></div>
@@ -60,7 +61,7 @@
       </a>
       <a href="resorts.html" class="door resort">
         <span class="door-icon"><i data-icon="lift"></i></span>
-        <span class="door-text"><b>Resorts</b><small>Alta, Snowbird, Brighton, Solitude</small></span>
+        <span class="door-text"><b>Resorts</b><small>Alta, Snowbird, Brighton, Solitude, Palisades</small></span>
         <i data-icon="chev" class="chev"></i>
       </a>
       <a href="scorecard.html" class="door score">
@@ -70,9 +71,6 @@
       </a>
     </nav>
 
-    <footer class="foot">
-      <p>Each day runs 6 pm the night before to 6 pm. Last 24&nbsp;h is the rise in snow depth at the Alta SNOTEL. Snow is a blend of the NBM, ECMWF, GFS, GEM and NWS forecasts; tap Full forecast to see each model and how the blend is made.</p>
-    </footer>
   </main>
 
   <script src="snow.js"></script>

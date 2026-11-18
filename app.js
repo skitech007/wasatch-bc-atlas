@@ -734,9 +734,9 @@ async function updateRoute() {
 
   // ---- checks, the way Cody Townsend works through a plan ----
   const checks = [];
-  const add = (level, title, body, src) => checks.push(`<div class="check ${level}"><b>${title}</b>${body}${src ? `<small>${src}</small>` : ''}</div>`);
-  add('info', `Your day: about ${hm(hours)} up`, `${fmt(gain * FT)} ft at ${fmt(pace)} ft/hr. Leave at ${document.getElementById('start-time').value || '07:00'}, top around <b style="display:inline">${topStr}</b>. Add time for route-finding, transitions and the exit.`,
-    "Cody Townsend's rule of thumb: vertical ÷ your hourly pace.");
+  const add = (level, title, body, src) => checks.push(`<div class="check ${level}"><b>${title}${src ? ` ${infoTip(src, 'Where this comes from')}` : ''}</b>${body}</div>`);
+  add('info', `Your day: about ${hm(hours)} up`, `${fmt(gain * FT)} ft at ${fmt(pace)} ft/hr. Leave at ${document.getElementById('start-time').value || '07:00'}, top around <b style="display:inline">${topStr}</b>.`,
+    "Add time for route-finding, transitions and the exit. Cody Townsend's rule of thumb: vertical ÷ your hourly pace.");
 
   if (covered > dist * 0.5) {
     const worst = atesD.reduce((w, v, k) => v > 15 ? k : w, 0);
@@ -746,38 +746,37 @@ async function updateRoute() {
       'Avalanche Terrain Exposure Scale, computed with the AutoATES v2.0 method (not field-checked here).');
     if (overhead > 15) {
       add(overhead > 400 ? 'bad' : 'warn', `Overhead hazard: ${mi(overhead)} mi, about ${hm(hours * overhead / dist)}`,
-        'Ground where a slide from the steep slopes above could reach you, outside dense trees. Keep the time here short; Cody turned around on a warm day rather than sit under hazard for hours.',
-        'Typical (24° alpha) runout reach, AutoATES method.');
-    } else add('ok', 'No overhead hazard flagged under the line', 'Nothing in the typical runout reach outside dense trees. Check the steep ground you climb itself, and the bigger-event reach on the map.', '');
+        '', 'Ground where a slide from the steep slopes above could reach you, outside dense trees. Keep the time here short; Cody turned around on a warm day rather than sit under hazard for hours. Typical (24° alpha) runout reach, AutoATES method.');
+    } else add('ok', 'No overhead hazard flagged under the line', '', 'Nothing in the typical runout reach outside dense trees. Check the steep ground you climb itself, and the bigger-event reach on the map.');
   } else {
-    add('info', 'Outside the terrain model', 'Terrain class and overhead hazard are only computed from Millcreek to Alta.', '');
+    add('info', 'Outside the terrain model', '', 'Terrain class and overhead hazard are only computed from Millcreek to Alta.');
   }
 
   add(nCrossed ? 'warn' : 'ok', `${nCrossed} mapped avalanche path${nCrossed === 1 ? '' : 's'} crossed`, esc(names.join(', ') || 'None in the 1989 survey'), 'Utah SGID Avalanche Paths (1989).');
 
   if (trap > 15) add('bad', `Terrain trap: ${mi(trap)} mi in a creek bed under overhead hazard`,
-    `${trapNames.size ? 'Along ' + esc([...trapNames].join(', ')) + '. ' : ''}Hard to escape and a deep burial if something comes down. Cody's Pinchot Creek lesson: stay out of the creek bed when there's hazard above.`,
-    'Streams from the USGS National Hydrography Dataset (within 25 m).');
+    trapNames.size ? 'Along ' + esc([...trapNames].join(', ')) + '.' : '',
+    "Hard to escape and a deep burial if something comes down. Cody's Pinchot Creek lesson: stay out of the creek bed when there's hazard above. Streams from the USGS National Hydrography Dataset (within 25 m).");
 
   const binColors = [[110, 120, 130], ...SLOPE_CLASSES.slice(1, 4).map(c => c[2]), [90, 0, 160]];
   add(maxSlope >= 30 ? 'warn' : 'ok', `Steepest ${fmt(maxSlope)}° (at ${mi(maxSlopeAt)} mi)`,
     `<div class="slope-bins">${bins.map((v, k) => v > 0 ? `<i style="width:${100 * v / dist}%;background:rgb(${binColors[k].join(',')})"></i>` : '').join('')}</div>`
     + `Under 25°: ${mi(bins[0])} mi · 25–30°: ${mi(bins[1])} · 30–35°: ${mi(bins[2])} · 35–40°: ${mi(bins[3])} · 40°+: ${mi(bins[4])}`
-    + (near30 > 30 ? `<br><b style="display:inline">${mi(near30)} mi is 27–30°</b>, right at the line. The map can't see a 31° roll inside a "30°" slope, so check with an inclinometer.` : ''),
-    `Ground under the line only, from ~10 m USGS 3DEP elevation (z${SAMPLE_Z}), every 15 m.`);
+    + (near30 > 30 ? `<br><b style="display:inline">${mi(near30)} mi is 27–30°</b>, right at the line.` : ''),
+    `${near30 > 30 ? 'The map can\'t see a 31° roll inside a "30°" slope, so check with an inclinometer. ' : ''}Ground under the line only, from ~10 m USGS 3DEP elevation (z${SAMPLE_Z}), every 15 m.`);
 
   const today = await (globalThis.altaToday?.() ?? null);
   if (seq !== routeSeq) return;
   const steepAsp = aspD.map((v, k) => v > 20 ? `${ASPECTS[k]} ${mi(v)}` : '').filter(Boolean).join(' · ');
   add(southSteep > 30 && today?.highF > 32 ? 'warn' : 'info', 'Sun and warming',
-    (southSteep > 30 ? `${mi(southSteep)} mi of 28°+ slopes face SE–SW; these warm first when the sun is out.` : 'Little steep south-facing ground on the line.')
+    (southSteep > 30 ? `${mi(southSteep)} mi of 28°+ slopes face SE–SW.` : 'Little steep south-facing ground on the line.')
     + (steepAsp ? ` Steep ground by aspect: ${steepAsp} mi.` : '')
     + (today ? `<br>Today at Alta (9,895′): high ${Math.round(today.highF)}°F${today.fz ? `, freezing level ${fmt(Math.round(today.fz / 100) * 100)}′` : ''}${today.snow >= 0.5 ? `, ${Math.round(today.snow)}" new` : ''}.` : ''),
-    'Use Map → Hillshade → Real sun to see which slopes the sun is on. Forecast: Alta blend (Resort page).');
+    'Slopes facing SE–SW warm first when the sun is out. Use Map → Hillshade → Real sun to see which slopes the sun is on. Forecast: Alta blend (Resort page).');
 
   if (state.mask) add(roseHit > 15 ? 'bad' : 'ok', roseHit > 15 ? `${mi(roseHit)} mi in terrain your rose marks dangerous` : 'Clear of the bands you marked on the rose',
-    `Slopes of ${state.minSlope}°+ in the aspects and elevations tapped on the avalanche rose (Map tab).`, '');
-  else add('info', 'Danger rose not filled in', 'Tap today\'s problem aspects and elevations on the rose (Map tab) and the route is checked against them.', '');
+    '', `Slopes of ${state.minSlope}°+ in the aspects and elevations tapped on the avalanche rose (Map tab).`);
+  else add('info', 'Danger rose not filled in', '', 'Tap today\'s problem aspects and elevations on the rose (Map tab) and the route is checked against them.');
   add('info', 'Elevation bands', `Below 8,000′: ${mi(bandD[0])} mi · 8,000–9,500′: ${mi(bandD[1])} · above 9,500′: ${mi(bandD[2])}`, 'UAC Salt Lake elevation bands.');
 
   checksEl.innerHTML = checks.join('');
@@ -1077,17 +1076,17 @@ async function renderGuide() {
   const used = [...new Set([...(p.notes || []), ...(p.warn || [])].flatMap(n => n.src).concat((p.runs || []).map(r => r.src), (p.slides || []).map(s => s.src), (p.published || []).map(x => x.src), p.start ? [p.start.src] : []))];
   const seen = Object.entries(p.seen || {}).filter(([, v]) => v.length).map(([k, v]) => `${SEEN_LABEL[k]}: ${v.map(x => `“${esc(x)}”`).join(', ')}`).join(' · ');
   el.innerHTML = `
-    <div class="guide-head">${uacChip(p)}${seenChips(p.seen)}<span class="muted">${esc(AREA_NAME[p.area] || p.area)}</span></div>
-    ${seen ? `<p class="hint">In your photos as ${seen}</p>` : ''}
+    <div class="guide-head">${uacChip(p)}${seenChips(p.seen)}<span class="muted">${esc(AREA_NAME[p.area] || p.area)}</span>${seen ? ` ${infoTip(`<p>In your photos as ${seen}</p>`, 'Where this tour came from')}` : ''}</div>
+
     <div id="guide-status"></div>
     <div class="offline-row"><button id="save-offline" class="cta">${(() => { const o = store.get('offline', {})[p.id]; return o ? `Saved for offline ${new Date(o.at).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(o.tiles)} tiles${o.missing ? ` (${o.missing} failed)` : ''} · save again` : 'Save this tour\'s map for offline'; })()}</button>
-      <p class="hint">Downloads the topo, elevation and terrain-class tiles around the line and its runs, so the map, slope shading and route checks work with no signal. Forecasts and avalanche data still need a connection.</p></div>
+ ${infoTip('<p>Downloads the topo, elevation and terrain-class tiles around the line and its runs, so the map, slope shading and route checks work with no signal. Forecasts and avalanche data still need a connection.</p>', 'What this saves')}</div>
     <details open><summary>Getting there</summary>${start}
       <table class="mini"><tr><th></th><th>Climb</th><th>Distance</th></tr>${pub}<tr><td>${lineSrc}</td><td>≈${fmt(a.gain_ft)} ft</td><td>≈${fmt(a.distance_mi, 1)} mi</td></tr></table>
       ${p.notes?.length ? `<ul class="guide-list">${items(p.notes)}</ul>` : ''}</details>
     ${p.warn?.length || deaths ? `<details open><summary>Watch out</summary><ul class="guide-list warn">${items(p.warn)}${deaths}</ul></details>` : ''}
-    ${runs ? `<details open><summary>Runs <span class="muted">(${p.runs.length})</span></summary><p class="hint">Rating, slope and aspect as the source lists them; “map here” is measured within 40 m of the listed point, which can sit mid-run.</p><ul class="guide-list runs">${runs}</ul></details>` : ''}
-    ${slides ? `<details open><summary>Slides reported to UAC <span class="muted">(${p.slides.length})</span></summary><p class="hint">Reports read for this tour, not every slide on record. ${srcLinks(['uac-list'], p)}</p><table class="mini slides"><tr><th>Date</th><th>Where</th><th>Trigger</th><th>Size</th><th>Aspect</th><th></th></tr>${slides}</table></details>` : ''}
+    ${runs ? `<details open><summary>Runs <span class="muted">(${p.runs.length})</span></summary><p class="title-info">${infoTip('<p>Rating, slope and aspect as the source lists them; “map here” is measured within 40 m of the listed point, which can sit mid-run.</p>', 'About these runs')}</p><ul class="guide-list runs">${runs}</ul></details>` : ''}
+    ${slides ? `<details open><summary>Slides reported to UAC <span class="muted">(${p.slides.length})</span></summary><p class="title-info">${infoTip(`<p>Reports read for this tour, not every slide on record. ${srcLinks(['uac-list'], p)}</p>`, 'About these slides')}</p><table class="mini slides"><tr><th>Date</th><th>Where</th><th>Trigger</th><th>Size</th><th>Aspect</th><th></th></tr>${slides}</table></details>` : ''}
     <details><summary>Sources <span class="muted">(${used.length})</span></summary><ul class="guide-list">${used.map(k => {
       const s = state.tours.sources[k] || (k === 'uac-route' ? { title: `UAC route rating: ${p.uac}`, url: uac?.routes.find(r => r.name === p.uac)?.url } : { title: k });
       return `<li>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>` : esc(s.title)}</li>`;

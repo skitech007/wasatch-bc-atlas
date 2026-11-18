@@ -72,8 +72,7 @@ function renderWind(s) {
   if (!w) { $('wind').innerHTML = '<p class="muted">Not started yet: the first nightly run hasn\'t happened.</p>'; return; }
   $('wind').innerHTML = `<p>${w.active
     ? `<b>On.</b> Forecast wind ×${w.speed.toFixed(2)}, gusts ×${w.gust.toFixed(2)}, learned from ${w.days} days (${w.hours} hours) at ${w.station}.`
-    : `<b>Learning:</b> ${w.days} of ${w.needDays} days matched so far at ${w.station}${w.speed ? ` (running estimate: wind ×${w.speed.toFixed(2)}, gusts ×${(w.gust ?? 1).toFixed(2)})` : ''}. It switches on by itself at ${w.needDays} days.`}</p>
-    <p class="hint">No SNOTEL near Alta measures wind, and the NWS only keeps about a week of station history, so the worker saves Hidden Peak's readings every night and compares them with the wind it forecast 1–7 days earlier. Hidden Peak is an exposed ridgetop, so the corrected wind reads as upper-mountain wind.</p>`;
+    : `<b>Learning:</b> ${w.days} of ${w.needDays} days matched so far at ${w.station}${w.speed ? ` (running estimate: wind ×${w.speed.toFixed(2)}, gusts ×${(w.gust ?? 1).toFixed(2)})` : ''}. It switches on by itself at ${w.needDays} days.`}</p>`;
 }
 
 (async () => {
