@@ -52,14 +52,17 @@ async function load(force) {
   try { resorts = await loadResorts(); } catch (e) { $('status').textContent = `Couldn't load the resort list: ${e.message}`; $('refresh').classList.remove('spin'); return; }
   if (force) resorts.forEach(r => delete got[r.id]);
   render();
-  await Promise.all(resorts.map(r => fetchAll(force, r.id)
+  // A saved forecast too old to reuse is drawn at once and replaced when the fresh one arrives; if
+  // that fails, the saved one stays
+  await Promise.all(resorts.map(r => fetchAll(force, r.id, s => { got[r.id] = { raw: s, b: build(s) }; render(); $('status').textContent = 'Saved forecasts · updating…'; })
     .then(raw => { got[r.id] = { raw, b: build(raw) }; })
-    .catch(e => { got[r.id] = { error: e.message }; })
+    .catch(e => { if (!got[r.id]?.raw) got[r.id] = { error: e.message }; })
     .finally(render)));
   const ok = resorts.filter(r => got[r.id]?.raw);
   const at = Math.min(...ok.map(r => got[r.id].raw.at));
+  const saved = ok.some(r => got[r.id].raw.saved);
   $('refresh').classList.remove('spin');
-  $('status').innerHTML = ok.length ? `<span class="part">Cottonwoods &amp; Tahoe</span><span class="part">updated ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>` : 'Forecasts unavailable';
+  $('status').innerHTML = ok.length ? `<span class="part">Cottonwoods &amp; Tahoe</span><span class="part">${saved ? 'saved' : 'updated'} ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${saved ? ", couldn't update" : ''}</span>` : 'Forecasts unavailable';
 }
 
 $('list').addEventListener('click', ev => {

@@ -361,23 +361,32 @@ document.addEventListener('focusout', hideTip);
 
 // ---------- boot ----------
 async function load(force) {
+  let saved = null;
   $('status').textContent = 'Loading forecast…';
   $('refresh').classList.add('spin');
   try {
     if (!R) { R = await resortById(RESORT_ID); renderHeader(); }
-    const res = await fetchAll(force, R.id);
-    const b = build(res);
-    renderSummary(b, res.data); renderPeriods(b); renderHourly(b); renderModels(b);
-    renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
-    const errs = Object.entries(res.errors);
-    const when = new Date(res.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const down = errs.filter(([k]) => k !== 'corrections');
-    $('status').innerHTML = [`${ft(R.point.ft)} ft`, `updated ${when}`, ...(down.length ? [`<span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>`] : [])]
-      .map(t => `<span class="part">${t}</span>`).join('');
-    $('alerts').insertAdjacentHTML('beforeend', down.length ? `<div class="alert"><b>Some sources didn't answer:</b> ${esc(down.map(([k]) => k).join(', '))}. The rest of the blend is shown.</div>` : '');
-    window.resortForecast = b; // handy for poking at numbers in the console
+    const show = res => {
+      const b = build(res);
+      renderSummary(b, res.data); renderPeriods(b); renderHourly(b); renderModels(b);
+      renderObserved(res.data); renderNws(res.data); renderMethod(b, res.data);
+      const errs = Object.entries(res.errors);
+      const when = new Date(res.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const down = errs.filter(([k]) => k !== 'corrections');
+      $('status').innerHTML = [`${ft(R.point.ft)} ft`, res.saved ? `saved ${when} · updating…` : `updated ${when}`, ...(down.length ? [`<span class="warn">${down.length} source${down.length > 1 ? 's' : ''} down</span>`] : [])]
+        .map(t => `<span class="part">${t}</span>`).join('');
+      if (!res.saved) $('alerts').insertAdjacentHTML('beforeend', down.length ? `<div class="alert"><b>Some sources didn't answer:</b> ${esc(down.map(([k]) => k).join(', '))}. The rest of the blend is shown.</div>` : '');
+      window.resortForecast = b; // handy for poking at numbers in the console
+    };
+    // A saved forecast too old to reuse is drawn at once, then replaced; if the fresh one fails it stays
+    show(await fetchAll(force, R.id, s => { saved = s; show(s); }));
   } catch (e) {
     const off = navigator.onLine === false;
+    if (saved) {
+      const when = new Date(saved.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      $('status').innerHTML = [`${ft(R.point.ft)} ft`, `<span class="warn">saved ${when}, ${off ? 'no signal' : "couldn't update"}</span>`].map(t => `<span class="part">${t}</span>`).join('');
+      return;
+    }
     $('status').innerHTML = `<span class="warn">${off ? 'No signal' : 'Forecast unavailable'}</span>`;
     $('summary').innerHTML = `<div class="banner ${off ? 'info' : 'danger'}">${ICON[off ? 'wifiOff' : 'alert']}<div><b>${off ? 'No signal' : 'Forecast failed to load'}</b>${off ? 'This forecast loads when you are back in coverage.' : esc(e.message)}</div></div>`;
     ['periods', 'hourly'].forEach(id => { $(id).innerHTML = ''; });

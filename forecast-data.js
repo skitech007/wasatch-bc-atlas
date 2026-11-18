@@ -141,6 +141,8 @@ const resortById = async id => { const rs = await loadResorts(); return rs.find(
 
 // ---------- fetching ----------
 const CACHE_MIN = 20;
+// An older saved forecast is still drawn at once while a fresh one loads (see fetchAll's onSaved)
+const SAVED_MAX_H = 48;
 
 async function getJSON(url, ms = 12000) {
   // Time out so one slow source (USDA's SNOTEL server sometimes hangs) can't hold up the page
@@ -165,14 +167,17 @@ async function getForecast(query) {
   catch { return getJSON('https://previous-runs-api.open-meteo.com/v1/forecast?' + query); }
 }
 
-async function fetchAll(force, resortId = 'alta') {
+// onSaved(forecast): called first with the last saved forecast when it's too old to use as is but
+// under SAVED_MAX_H, so the page can draw it at once (marked saved: true): on one bar of signal the
+// fresh fetch can take 20 s or fail.
+async function fetchAll(force, resortId = 'alta', onSaved) {
   const r = await resortById(resortId);
   const cacheKey = `${r.id}-forecast-v5`;
   if (!force) {
-    try {
-      const c = JSON.parse(localStorage.getItem(cacheKey));
-      if (c && Date.now() - c.at < CACHE_MIN * 60e3) return { ...c, resort: r };
-    } catch { /* storage unavailable: fetch fresh */ }
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem(cacheKey)); } catch { /* storage unavailable: fetch fresh */ }
+    if (c?.data && Date.now() - c.at < CACHE_MIN * 60e3) return { ...c, resort: r };
+    if (c?.data && onSaved && Date.now() - c.at < SAVED_MAX_H * 3600e3) onSaved({ ...c, resort: r, saved: true });
   }
   const today = localKey(new Date(), r.tz).slice(0, 10);
   const pt = r.point;

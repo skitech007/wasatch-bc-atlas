@@ -46,24 +46,35 @@ async function renderAvy() {
   }
 }
 
+const clock = at => new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+function show(raw) {
+  const b = build(raw);
+  renderChart(b, raw.data);
+  renderStorm(b);
+  renderToday(b);
+  $('status').textContent = raw.saved ? `9,895 ft · saved ${clock(raw.at)} · updating…` : `9,895 ft · ${clock(raw.at)}`;
+  const down = Object.keys(raw.errors || {}).filter(k => k !== 'corrections');
+  $('snow-error').innerHTML = down.length ? `<div class="banner warn">${ICON.alert}<div><b>Some sources didn't answer</b>${esc(down.join(', '))}. The rest of the blend is shown.</div></div>` : '';
+}
+
 async function load(force) {
   const btn = $('refresh');
   btn.classList.add('spin'); btn.disabled = true;
   $('snow-error').innerHTML = '';
+  let saved = null;   // drawn first if the last forecast is too old to reuse, then replaced
   try {
-    const raw = await fetchAll(force);
-    const b = build(raw);
-    renderChart(b, raw.data);
-    renderStorm(b);
-    renderToday(b);
-    const t = new Date(raw.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    $('status').textContent = `9,895 ft · ${t}`;
-    const down = Object.keys(raw.errors || {}).filter(k => k !== 'corrections');
-    if (down.length) $('snow-error').innerHTML = `<div class="banner warn">${ICON.alert}<div><b>Some sources didn't answer</b>${esc(down.join(', '))}. The rest of the blend is shown.</div></div>`;
+    show(await fetchAll(force, 'alta', s => { saved = s; show(s); }));
   } catch (e) {
+    const off = navigator.onLine === false;
+    if (saved) {
+      $('status').textContent = `9,895 ft · saved ${clock(saved.at)}`;
+      $('snow-error').innerHTML = `<div class="banner info">${ICON[off ? 'wifiOff' : 'alert']}<div><b>${off ? 'No signal' : 'Couldn\'t update'}</b>Showing the forecast saved at ${clock(saved.at)}.</div></div>`;
+      return;
+    }
     $('status').textContent = 'Unavailable';
     $('chart').innerHTML = '';
-    $('snow-error').innerHTML = `<div class="banner ${navigator.onLine === false ? 'info' : 'danger'}">${ICON[navigator.onLine === false ? 'wifiOff' : 'alert']}<div><b>${navigator.onLine === false ? 'No signal' : 'Forecast unavailable'}</b>${navigator.onLine === false ? 'The forecast loads when you are back in coverage.' : esc(e.message)}</div></div>`;
+    $('snow-error').innerHTML = `<div class="banner ${off ? 'info' : 'danger'}">${ICON[off ? 'wifiOff' : 'alert']}<div><b>${off ? 'No signal' : 'Forecast unavailable'}</b>${off ? 'The forecast loads when you are back in coverage.' : esc(e.message)}</div></div>`;
     ['storm', 'today'].forEach(id => { $(id).querySelectorAll('.skeleton').forEach(s => s.remove()); });
   } finally {
     btn.classList.remove('spin'); btn.disabled = false;

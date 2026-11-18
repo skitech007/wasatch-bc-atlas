@@ -3,8 +3,11 @@
 // Map tiles and map fonts go in a second cache, cache-first, so a tour viewed (or
 // saved with "Save for offline") at home still draws with no signal on the skin track. The app's own
 // terrain-class tiles (/tiles/) stay in the shell cache, so a rebuild replaces them.
-const CACHE = 'atlas-shell-v15';
+const CACHE = 'atlas-shell-v16';
 const TILES = 'atlas-tiles-v1';
+const NET_WAIT_MS = 3000;       // how long the app's own files wait for the network before the cache
+let slowUntil = 0;              // after one wait runs out, go straight to the cache for 30 s (the page, scripts
+                                // and data load one after another, so the waits would add up)
 const TILE_MAX = 12000;          // entries kept; the oldest go first past this
 const SHELL = [
   './', 'index.html', 'home.css', 'home.js', 'backcountry.html', 'backcountry.css', 'app.css', 'app.js', 'dem.js', 'tile-worker.js',
@@ -41,8 +44,26 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
-  e.respondWith(fetch(e.request).then(r => {
-    if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+  // Network first, but a weak signal mustn't leave the app spinning: one bar in the canyon can take a
+  // minute to fail. After 3 s with no answer, use the cached copy if there is one; the network's
+  // answer still refreshes the cache when it arrives.
+  let answered = false;
+  const net = fetch(e.request).then(r => {
+    answered = true;
+    if (r.ok) { const copy = r.clone(); return caches.open(CACHE).then(c => c.put(e.request, copy)).then(() => r, () => r); }
     return r;
-  }).catch(() => caches.match(e.request, { ignoreSearch: true })));
+  });
+  e.waitUntil(net.catch(() => {}));
+  e.respondWith((async () => {
+    const cached = () => caches.match(e.request, { ignoreSearch: true });
+    try {
+      const slow = new Promise(res => setTimeout(res, Date.now() < slowUntil ? 0 : NET_WAIT_MS)).then(() => answered ? null : cached()).then(hit => {
+        if (hit && !answered) slowUntil = Date.now() + 30000;
+        return hit;
+      });
+      return (await Promise.race([net, slow])) || await net;   // slow with nothing cached: keep waiting
+    } catch {
+      return (await cached()) || Response.error();
+    }
+  })());
 });
